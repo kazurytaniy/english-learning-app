@@ -20,6 +20,7 @@ const LearningPage = ({ words, mode, settings, onComplete, onUpdateWord, customW
   const correctCount = results.filter((r) => r.correct).length;
 
   const [currentMode, setCurrentMode] = useState(mode);
+  const isReviewSession = !!(customWords && customWords.length > 0);
 
   // セッション初期化（選択カード数がそのまま問題数）
   useEffect(() => {
@@ -31,12 +32,12 @@ const LearningPage = ({ words, mode, settings, onComplete, onUpdateWord, customW
     setFormatType('ai-friendly');
     setStartTime(Date.now());
     setCurrentIndex(0);
-    if (customWords && customWords.length > 0) {
+    if (isReviewSession) {
       setStudyWords(shuffleArray(customWords));
     } else {
       setStudyWords(shuffleArray(getTodayWords(words)));
     }
-  }, [mode, customWords]);
+  }, [mode, customWords, isReviewSession]);
 
   // ランダムモード用のモード決定
   useEffect(() => {
@@ -72,21 +73,23 @@ const LearningPage = ({ words, mode, settings, onComplete, onUpdateWord, customW
     if (!currentWord) return;
     const responseTime = Date.now() - startTime;
 
-    const nextReview = calculateNextReview(currentWord, isCorrect, settings.intervals);
-    const newHistory = addReviewHistory(currentWord, currentMode, isCorrect, responseTime);
+    if (!isReviewSession) {
+      const nextReview = calculateNextReview(currentWord, isCorrect, settings.intervals);
+      const newHistory = addReviewHistory(currentWord, currentMode, isCorrect, responseTime);
 
-    const updatedWord = {
-      ...currentWord,
-      reviewHistory: newHistory,
-      nextReviewDate: nextReview.nextReviewDate,
-      currentInterval: nextReview.currentInterval,
-      correctCount: (currentWord.correctCount || 0) + (isCorrect ? 1 : 0),
-      incorrectCount: (currentWord.incorrectCount || 0) + (isCorrect ? 0 : 1),
-      lastReviewDate: new Date().toISOString().split('T')[0],
-    };
-    updatedWord.status = updateStatus(updatedWord);
+      const updatedWord = {
+        ...currentWord,
+        reviewHistory: newHistory,
+        nextReviewDate: nextReview.nextReviewDate,
+        currentInterval: nextReview.currentInterval,
+        correctCount: (currentWord.correctCount || 0) + (isCorrect ? 1 : 0),
+        incorrectCount: (currentWord.incorrectCount || 0) + (isCorrect ? 0 : 1),
+        lastReviewDate: new Date().toISOString().split('T')[0],
+      };
+      updatedWord.status = updateStatus(updatedWord);
 
-    await onUpdateWord(currentWord.id, updatedWord);
+      await onUpdateWord(currentWord.id, updatedWord);
+    }
 
     setResults((prev) => [
       ...prev,
@@ -104,12 +107,12 @@ const LearningPage = ({ words, mode, settings, onComplete, onUpdateWord, customW
   };
 
   const handleReset = () => {
-    onComplete(results);
+    onComplete(results, { isReviewSession });
   };
 
   const handleInterrupt = () => {
     if (window.confirm('Stop learning now? Results so far will be saved.')) {
-      onComplete(results);
+      onComplete(results, { isReviewSession });
     }
   };
 

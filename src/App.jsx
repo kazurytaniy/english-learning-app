@@ -35,11 +35,18 @@ function App() {
   };
 
   // 学習完了
-  const completeLearning = async (results) => {
-    const correctCount = results.filter(r => r.correct).length;
-    await updateToday(results.length, correctCount);
+  const completeLearning = async (results, options = {}) => {
+    const { isReviewSession = false } = options;
+
+    if (!isReviewSession) {
+      const correctCount = results.filter(r => r.correct).length;
+      await updateToday(results.length, correctCount);
+      await reloadCalendar(); // カレンダーデータを再読み込み
+    }
+
+    await reloadWords(); // 単語データを再読み込み
     setCustomLearningWords(null);
-    
+
     // バッジチェック（ここでは省略、StatisticsPageで実装）
     setCurrentPage('home');
   };
