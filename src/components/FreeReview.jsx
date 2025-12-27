@@ -43,7 +43,7 @@ export default function FreeReview({ onBack, repo }) {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterTag, setFilterTag] = useState('');
   const [searchText, setSearchText] = useState('');
-  const [maxAccuracy, setMaxAccuracy] = useState('20');
+  const [maxAccuracy, setMaxAccuracy] = useState('');
   const [searchTrigger, setSearchTrigger] = useState(0);
   const [sortKey, setSortKey] = useState('weak');
   const [selectedIds, setSelectedIds] = useState([]);
