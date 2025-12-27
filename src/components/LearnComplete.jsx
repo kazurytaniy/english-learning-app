@@ -20,20 +20,20 @@ export default function LearnComplete({ summary, onBack, onRetryWrong }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="card" style={{ maxWidth: 560, width: '100%' }}>
-        <h2 style={{ marginTop: 0, textAlign: 'center' }}>学習完了！</h2>
+    <div className="min-h-screen flex items-center justify-center px-4 word-page">
+      <div className="form-card" style={{ maxWidth: 560, width: '100%' }}>
+        <h2 style={{ marginTop: 0, textAlign: 'center' }}>学習完了</h2>
         <p style={{ textAlign: 'center' }}>正解: {summary.correct} / 不正解: {summary.wrong}</p>
 
         {summary.wrongItems?.length > 0 && (
-          <div className="card" style={{ background: '#fef2f2', border: '1px solid #fecdd3' }}>
+          <div className="word-card" style={{ background: '#fef2f2', border: '1px solid #fecdd3' }}>
             <div className="row" style={{ alignItems: 'center', justifyContent: 'space-between' }}>
               <div className="muted">間違えた単語 ({summary.wrongItems.length}件)</div>
               <button className="md-btn" onClick={copyText}>
                 <Copy size={16} /> コピー
               </button>
             </div>
-            <textarea readOnly value={textSimple} rows={6} style={{ width: '100%', marginTop: 8 }} />
+            <textarea readOnly value={textSimple} rows={6} className="form-input" style={{ marginTop: 8 }} />
             <button className="md-btn primary" onClick={onRetryWrong} style={{ marginTop: 8 }}>
               間違えたものだけ復習
             </button>
@@ -42,7 +42,7 @@ export default function LearnComplete({ summary, onBack, onRetryWrong }) {
         )}
 
         <div className="row" style={{ marginTop: 12 }}>
-          <button className="md-btn primary" onClick={onBack}>ホームに戻る</button>
+          <button className="btn btn-primary" onClick={onBack}>ホームに戻る</button>
         </div>
       </div>
     </div>

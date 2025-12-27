@@ -15,6 +15,12 @@ const STATUS_COLORS = {
   'マスター': { bg: 'linear-gradient(135deg, #d4a000 0%, #ffd700 50%, #d4a000 100%)', text: '#333' },
 };
 
+const SKILLS = [
+  { id: 'A', label: '英→日' },
+  { id: 'B', label: '日→英' },
+  { id: 'C', label: 'Listening' },
+];
+
 // 編集アイコン
 const EditIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -74,7 +80,7 @@ export default function WordList({ repo, ready, onBack }) {
   const [filterCategory, setFilterCategory] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterTag, setFilterTag] = useState('');
-  const [maxAccuracy, setMaxAccuracy] = useState('20');
+  const [maxAccuracy, setMaxAccuracy] = useState('');
   const [searchTrigger, setSearchTrigger] = useState(0);
 
   const load = async () => {
@@ -207,7 +213,7 @@ export default function WordList({ repo, ready, onBack }) {
       if (filterStatus && item.status !== filterStatus) return false;
       if (filterTag && !(item.tags || []).includes(filterTag)) return false;
       const stat = statsByItem[item.id];
-      const acc = stat ? stat.accuracy : 0;
+      const acc = stat?.total?.accuracy ?? 0;
       return acc <= max;
     });
   }, [items, filterCategory, filterStatus, filterTag, maxAccuracy, statsByItem, searchTrigger]);
@@ -644,19 +650,47 @@ export default function WordList({ repo, ready, onBack }) {
           font-weight: 600;
         }
         
-        /* 統計行 */
-        .stats-row {
-          display: flex;
-          align-items: center;
-          gap: 16px;
+        /* 統計セクション */
+        .stats-section {
           margin-top: 16px;
-          padding-top: 12px;
+          padding-top: 16px;
           border-top: 1px solid #f3f4f6;
-          flex-wrap: wrap;
+        }
+        .stats-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+          margin-bottom: 10px;
+        }
+        @media (max-width: 480px) {
+          .stats-row {
+            grid-template-columns: 1fr;
+          }
         }
         .stat-item {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .skill-badge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 5px 12px;
+          border-radius: 6px;
+          font-size: 12px;
+          font-weight: 600;
+          background: #e5e7eb;
+          color: #374151;
+          min-width: 70px;
+        }
+        .stat-text {
           font-size: 13px;
-          color: #9ca3af;
+          color: #6b7280;
+        }
+        .stat-accuracy {
+          color: #6b7280;
+          font-weight: 600;
         }
         
         /* 詳細テキスト */
@@ -907,8 +941,15 @@ export default function WordList({ repo, ready, onBack }) {
 
       <div style={{ maxWidth: 860, width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}>
         {filteredItems.map((item) => {
-          const stat = statsByItem[item.id] || { correct: 0, attempts: 0, accuracy: 0 };
+          const stat = statsByItem[item.id] || {
+            total: { correct: 0, wrong: 0, attempts: 0, accuracy: 0 },
+            skills: {},
+          };
           const statusStyle = getStatusStyle(item.status || 'まだまだ');
+          const skillA = stat.skills?.A || { correct: 0, wrong: 0, attempts: 0, accuracy: 0 };
+          const skillB = stat.skills?.B || { correct: 0, wrong: 0, attempts: 0, accuracy: 0 };
+          const skillC = stat.skills?.C || { correct: 0, wrong: 0, attempts: 0, accuracy: 0 };
+
           return (
             <div key={item.id} className="word-card">
               <div className="word-header">
@@ -954,13 +995,39 @@ export default function WordList({ repo, ready, onBack }) {
                 </div>
               )}
 
-              <div className="stats-row">
-                <span className="status-badge" style={statusStyle}>
-                  {item.status || 'まだまだ'}
-                </span>
-                <span className="stat-item">正解: {stat.correct}</span>
-                <span className="stat-item">不正解: {stat.attempts - stat.correct}</span>
-                <span className="stat-item">正解率: {stat.accuracy}%</span>
+              <div className="stats-section">
+                {/* 1行目: 英→日 と 日→英 */}
+                <div className="stats-row">
+                  <div className="stat-item">
+                    <span className="skill-badge">英→日</span>
+                    <span className="stat-text">
+                      {skillA.correct}/{skillA.attempts}
+                      <span className="stat-accuracy"> 正解率 {skillA.accuracy}%</span>
+                    </span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="skill-badge">日→英</span>
+                    <span className="stat-text">
+                      {skillB.correct}/{skillB.attempts}
+                      <span className="stat-accuracy"> 正解率 {skillB.accuracy}%</span>
+                    </span>
+                  </div>
+                </div>
+                {/* 2行目: Listening と ステータス */}
+                <div className="stats-row">
+                  <div className="stat-item">
+                    <span className="skill-badge">Listening</span>
+                    <span className="stat-text">
+                      {skillC.correct}/{skillC.attempts}
+                      <span className="stat-accuracy"> 正解率 {skillC.accuracy}%</span>
+                    </span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="status-badge" style={statusStyle}>
+                      {item.status || 'まだまだ'}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           );
@@ -983,19 +1050,39 @@ function buildStats(items, progressList) {
   const ids = new Set(items.map((i) => i.id));
   const map = {};
   for (const item of items) {
-    map[item.id] = { correct: 0, attempts: 0, accuracy: 0 };
+    map[item.id] = {
+      total: { correct: 0, wrong: 0, attempts: 0, accuracy: 0 },
+      skills: {
+        A: { correct: 0, wrong: 0, attempts: 0, accuracy: 0 },
+        B: { correct: 0, wrong: 0, attempts: 0, accuracy: 0 },
+        C: { correct: 0, wrong: 0, attempts: 0, accuracy: 0 },
+      }
+    };
   }
   for (const prog of progressList) {
     if (!ids.has(prog.item_id)) continue;
     const entry = map[prog.item_id];
     const correct = prog.correct_count || 0;
     const wrong = prog.wrong_count || 0;
-    entry.correct += correct;
-    entry.attempts += correct + wrong;
+    const skill = prog.skill || 'A';
+    if (entry.skills[skill]) {
+      entry.skills[skill].correct += correct;
+      entry.skills[skill].wrong += wrong;
+      entry.skills[skill].attempts += correct + wrong;
+    }
+    entry.total.correct += correct;
+    entry.total.wrong += wrong;
+    entry.total.attempts += correct + wrong;
   }
   for (const id of Object.keys(map)) {
     const entry = map[id];
-    entry.accuracy = entry.attempts ? Math.round((entry.correct / entry.attempts) * 100) : 0;
+    entry.total.accuracy = entry.total.attempts
+      ? Math.round((entry.total.correct / entry.total.attempts) * 100)
+      : 0;
+    for (const skill of ['A', 'B', 'C']) {
+      const s = entry.skills[skill];
+      s.accuracy = s.attempts ? Math.round((s.correct / s.attempts) * 100) : 0;
+    }
   }
   return map;
 }

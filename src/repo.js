@@ -1,8 +1,19 @@
 import { openDB } from 'idb';
 
 const DB_NAME = 'ela-db';
-const DB_VERSION = 1;
-const STORES = ['items', 'translations', 'tags', 'item_tags', 'progress', 'attempts', 'settings', 'trophies', 'trophy_achievements', 'sessions'];
+const DB_VERSION = 2;
+const STORES = [
+  'items',
+  'translations',
+  'tags',
+  'item_tags',
+  'progress',
+  'attempts',
+  'settings',
+  'trophies',
+  'trophy_achievements',
+  'sessions',
+];
 
 export function useRepo() {
   let db;
@@ -10,15 +21,17 @@ export function useRepo() {
   const init = async () => {
     db = await openDB(DB_NAME, DB_VERSION, {
       upgrade(db) {
-        STORES.forEach((s) => {
-          if (!db.objectStoreNames.contains(s)) {
-            db.createObjectStore(s, { keyPath: 'id', autoIncrement: true });
-          }
-        });
-        if (!db.objectStoreNames.contains('settings')) db.createObjectStore('settings', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('items')) db.createObjectStore('items', { keyPath: 'id', autoIncrement: true });
+        if (!db.objectStoreNames.contains('translations')) db.createObjectStore('translations', { keyPath: 'id', autoIncrement: true });
+        if (!db.objectStoreNames.contains('tags')) db.createObjectStore('tags', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('item_tags')) db.createObjectStore('item_tags', { keyPath: 'id', autoIncrement: true });
         if (!db.objectStoreNames.contains('progress')) db.createObjectStore('progress', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('attempts')) db.createObjectStore('attempts', { keyPath: 'id', autoIncrement: true });
+        if (!db.objectStoreNames.contains('settings')) db.createObjectStore('settings', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('trophies')) db.createObjectStore('trophies', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('trophy_achievements')) db.createObjectStore('trophy_achievements', { keyPath: 'id', autoIncrement: true });
         if (!db.objectStoreNames.contains('sessions')) db.createObjectStore('sessions', { keyPath: 'id' });
-      }
+      },
     });
     const spacing = await db.get('settings', 'spacing');
     if (!spacing) {
@@ -31,7 +44,10 @@ export function useRepo() {
   const saveSettings = async (intervals) => db.put('settings', { id: 'spacing', intervals });
 
   // Items
-  const addItem = async (item) => db.add('items', item);
+  const addItem = async (item) => {
+    const payload = { created_at: Date.now(), ...item };
+    return db.add('items', payload);
+  };
   const listItems = async () => db.getAll('items');
   const updateItem = async (item) => db.put('items', item);
   const deleteItem = async (id) => db.delete('items', id);

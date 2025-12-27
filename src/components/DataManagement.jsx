@@ -14,14 +14,14 @@ export default function DataManagement({ repo, onBack }) {
       a.download = `ela-backup-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      setStatus('エクスポート完了');
+      setStatus('エクスポートが完了しました。');
     } catch (e) {
       console.error(e);
-      setStatus('エクスポート失敗');
+      setStatus('エクスポートに失敗しました。');
     }
   };
 
-  const handleImport = () => {
+  const handleImportClick = () => {
     fileInputRef.current?.click();
   };
 
@@ -32,10 +32,10 @@ export default function DataManagement({ repo, onBack }) {
       const text = await file.text();
       const data = JSON.parse(text);
       await repo.importAll(data);
-      setStatus('インポート完了（再読み込みしてください）');
+      setStatus('インポートが完了しました。ページを再読み込みすると反映されます。');
     } catch (err) {
       console.error(err);
-      setStatus('インポート失敗');
+      setStatus('インポートに失敗しました。');
     } finally {
       e.target.value = '';
     }
@@ -44,19 +44,21 @@ export default function DataManagement({ repo, onBack }) {
   const handleReset = async () => {
     if (!window.confirm('すべてのデータをリセットします。よろしいですか？')) return;
     await repo.resetAll();
-    setStatus('データをリセットしました');
+    setStatus('全データをリセットしました。');
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4">
-      <div className="card" style={{ maxWidth: 480, width: '100%' }}>
+    <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4 word-page">
+      <div className="form-card" style={{ maxWidth: 560, width: '100%' }}>
         <h2 style={{ marginTop: 0 }}>データ管理</h2>
-        <p>JSONでインポート/エクスポートできます。全データリセットも可能です。</p>
-        <div className="row">
-          <button className="md-btn" onClick={handleExport}>エクスポート</button>
-          <button className="md-btn" onClick={handleImport}>インポート</button>
-          <button className="md-btn danger" onClick={handleReset}>全データリセット</button>
+        <p className="muted">JSONでインポート / エクスポートができます。</p>
+
+        <div className="row" style={{ marginTop: 12 }}>
+          <button className="btn btn-primary" onClick={handleExport}>エクスポート</button>
+          <button className="btn btn-outline" onClick={handleImportClick}>インポート</button>
+          <button className="btn btn-ghost" onClick={handleReset}>全データリセット</button>
         </div>
+
         <input
           type="file"
           accept="application/json"
@@ -64,9 +66,11 @@ export default function DataManagement({ repo, onBack }) {
           ref={fileInputRef}
           onChange={onFileChange}
         />
-        {status && <div className="status">{status}</div>}
+
+        {status && <div className="status" style={{ marginTop: 12 }}>{status}</div>}
+
         <div style={{ marginTop: 12 }}>
-          <button className="md-btn text" onClick={onBack}>戻る</button>
+          <button className="btn btn-ghost" onClick={onBack}>戻る</button>
         </div>
       </div>
     </div>

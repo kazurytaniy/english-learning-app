@@ -27,12 +27,12 @@ export default function LearnPage({
 
   if (!current) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="card" style={{ textAlign: 'center' }}>
+      <div className="min-h-screen flex items-center justify-center word-page">
+        <div className="form-card" style={{ textAlign: 'center', maxWidth: 520, width: '100%' }}>
           <p>学習完了</p>
-          <button className="md-btn primary" onClick={onFinish}>完了画面へ</button>
-          <div className="mt-2">
-            <button className="md-btn text" onClick={onAbort}>ホームに戻る</button>
+          <button className="btn btn-primary" onClick={onFinish}>完了画面へ</button>
+          <div style={{ marginTop: 8 }}>
+            <button className="btn btn-ghost" onClick={onAbort}>ホームに戻る</button>
           </div>
         </div>
       </div>
@@ -73,14 +73,14 @@ export default function LearnPage({
   const progressCurrent = Math.min(answeredCount + 1, progressTotal);
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="card" style={{ maxWidth: 520, width: '100%', textAlign: 'center' }}>
+    <div className="min-h-screen flex items-center justify-center px-4 word-page">
+      <div className="form-card" style={{ maxWidth: 520, width: '100%', textAlign: 'center' }}>
         <div className="muted" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>{current.skill === 'A' ? '英→日' : current.skill === 'B' ? '日→英' : 'Listening'}</span>
           <span className="muted">{progressCurrent} / {progressTotal}</span>
         </div>
         <div
-          className="card"
+          className="word-card"
           style={{ background: '#f9fafb', marginTop: 12, marginBottom: 12, cursor: 'pointer' }}
           onClick={() => setShowAnswer(!showAnswer)}
         >
@@ -96,18 +96,20 @@ export default function LearnPage({
           )}
           <div className="muted">{jaText ? '単語/フレーズ' : ''}</div>
         </div>
-        <div className="row" style={{ justifyContent: 'center' }}>
-          <button onClick={() => handleGrade(true)} className="md-btn primary">
-            <Check size={16} style={{ marginRight: 6 }} />
-            正解
-          </button>
-          <button onClick={() => handleGrade(false)} className="md-btn danger">
-            <X size={16} style={{ marginRight: 6 }} />
-            不正解
-          </button>
-        </div>
+        {showAnswer && (
+          <div className="row" style={{ justifyContent: 'center' }}>
+            <button onClick={() => handleGrade(true)} className="md-btn primary">
+              <Check size={16} style={{ marginRight: 6 }} />
+              正解
+            </button>
+            <button onClick={() => handleGrade(false)} className="md-btn danger">
+              <X size={16} style={{ marginRight: 6 }} />
+              不正解
+            </button>
+          </div>
+        )}
         <div className="mt-4">
-          <button className="md-btn text" onClick={onAbort}>中断して戻る</button>
+          <button className="btn btn-ghost" onClick={onAbort}>中断して戻る</button>
         </div>
       </div>
     </div>

@@ -14,14 +14,21 @@ const defaultProgress = (item, skill) => ({
   mastered: false,
 });
 
-export async function buildTodayQueue(repo) {
+export async function buildTodayQueue(repo, skills = ['A', 'B', 'C']) {
   const items = await repo.listItems();
   const settings = await repo.getSettings();
   const intervals = settings?.intervals || [1, 2, 4, 7, 15, 30];
   const queue = [];
   for (const item of items) {
-    for (const skill of ['A', 'B', 'C']) {
-      const prog = (await repo.getProgress(item.id, skill)) || defaultProgress(item, skill);
+    for (const skill of skills) {
+      let prog = await repo.getProgress(item.id, skill);
+      if (!prog) {
+        prog = defaultProgress(item, skill);
+        await repo.saveProgress(prog);
+      } else if (!prog.next_due) {
+        prog.next_due = todayStr();
+        await repo.saveProgress(prog);
+      }
       const due = prog.next_due || todayStr();
       if (due <= todayStr()) {
         queue.push({ item, skill, progress: prog });
@@ -29,6 +36,7 @@ export async function buildTodayQueue(repo) {
     }
   }
   // 出題件数が多すぎる場合は上限を設定（例: 30件）
+  queue.sort((a, b) => (b.item.created_at || 0) - (a.item.created_at || 0));
   return queue.slice(0, 30);
 }
 
