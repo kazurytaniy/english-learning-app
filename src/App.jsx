@@ -1,266 +1,173 @@
-import React, { useState, useEffect } from 'react';
-import { Home, BookOpen, BarChart3, Settings as SettingsIcon } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import Dashboard from './components/Dashboard';
+import LearnPage from './components/LearnPage';
+import LearnComplete from './components/LearnComplete';
+import FreeReview from './components/FreeReview';
+import WordList from './components/WordList';
+import Settings from './components/Settings';
+import DataManagement from './components/DataManagement';
+import { useRepo } from './repo';
+import { buildTodayQueue, recordAnswer } from './services/scheduleService';
 
-// Components
-import HomePage from './components/HomePage';
-import WordListPage from './components/WordListPage';
-import LearningPage from './components/LearningPage';
-import StatisticsPage from './components/StatisticsPage';
-import SettingsPage from './components/SettingsPage';
-import AddWordModal from './components/AddWordModal';
-
-// Hooks
-import { useWords, useStudyCalendar, useSettings, useBadges } from './hooks/useStorage';
-
-// Database utilities
-import { exportAllData, importAllData, clearAllData } from './utils/db';
+const PAGES = { DASH: 'dash', LEARN: 'learn', COMPLETE: 'complete', FREE: 'free', WORDS: 'words', SETTINGS: 'settings', DATA: 'data' };
 
 function App() {
-  const [currentPage, setCurrentPage] = useState('home');
-  const [showAddWordModal, setShowAddWordModal] = useState(false);
-  const [learningMode, setLearningMode] = useState(null);
-  const [customLearningWords, setCustomLearningWords] = useState(null);
-  const [editWordId, setEditWordId] = useState(null);
-  
-  const { words, isLoading, addWord, updateWord, deleteWord, saveWords, reloadWords } = useWords();
-  const { calendar, updateToday, reloadCalendar } = useStudyCalendar();
-  const { settings, updateSetting, saveSettings } = useSettings();
-  const { unlockedBadges, unlockBadge } = useBadges();
+  const repo = useMemo(() => useRepo(), []);
+  const [ready, setReady] = useState(false);
+  const [page, setPage] = useState(PAGES.DASH);
+  const [queue, setQueue] = useState([]);
+  const [answers, setAnswers] = useState([]);
+  const [sessionId, setSessionId] = useState(null);
+  const [totalCount, setTotalCount] = useState(0);
+  const [completeSummary, setCompleteSummary] = useState(null);
 
-  // 学習開始
-  const startLearning = (mode, customWords = null) => {
-    setLearningMode(mode);
-    setCustomLearningWords(customWords);
-    setCurrentPage('learning');
-  };
+  useEffect(() => {
+    const run = async () => {
+      await repo.init();
+      setReady(true);
+    };
+    run();
+  }, [repo]);
 
-  // 学習完了
-  const completeLearning = async (results, options = {}) => {
-    const { isReviewSession = false } = options;
-
-    if (!isReviewSession) {
-      const correctCount = results.filter(r => r.correct).length;
-      await updateToday(results.length, correctCount);
-      await reloadCalendar(); // カレンダーデータを再読み込み
+  const startLearn = async () => {
+    if (!ready) return;
+    // 既存セッションがあれば再開
+    const saved = await repo.getSession('schedule');
+    if (saved && saved.queue && saved.queue.length > 0) {
+      setQueue(saved.queue);
+      setAnswers(saved.answers || []);
+      setSessionId(saved.id || 'schedule');
+      setTotalCount(saved.totalCount || saved.total || saved.queue.length + (saved.answers?.length || 0));
+      setPage(PAGES.LEARN);
+      return;
     }
-
-    await reloadWords(); // 単語データを再読み込み
-    setCustomLearningWords(null);
-
-    // バッジチェック（ここでは省略、StatisticsPageで実装）
-    setCurrentPage('home');
+    const todayQueue = await buildTodayQueue(repo);
+    setQueue(todayQueue);
+    setAnswers([]);
+    const sid = Date.now().toString();
+    setSessionId(sid);
+    setTotalCount(todayQueue.length);
+    await repo.saveSession('schedule', { id: sid, queue: todayQueue, answers: [], totalCount: todayQueue.length, currentIndex: 0 });
+    setPage(PAGES.LEARN);
   };
 
-  // 単語追加
-  const handleAddWord = async (wordData) => {
-    await addWord(wordData);
-    setShowAddWordModal(false);
+  const handleAnswer = async (item, skill, isCorrect, elapsedMs) => {
+    await recordAnswer(repo, item, skill, isCorrect, elapsedMs);
+    setAnswers((prev) => {
+      const nextAnswers = [...prev, { item, skill, isCorrect }];
+      setQueue((prevQueue) => {
+        const nextQueue = prevQueue.slice(1);
+        repo.saveSession('schedule', {
+          id: sessionId || 'schedule',
+          queue: nextQueue,
+          answers: nextAnswers,
+          totalCount: totalCount || (nextQueue.length + nextAnswers.length),
+          currentIndex: 0,
+        });
+        return nextQueue;
+      });
+      return nextAnswers;
+    });
   };
 
-  // データエクスポート
-  const handleExport = async () => {
-    try {
-      const data = await exportAllData();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `english-learning-backup-${new Date().toISOString().split('T')[0]}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      alert('データをエクスポートしました!');
-    } catch (error) {
-      console.error('Export failed:', error);
-      alert('エクスポートに失敗しました。');
+  const finishLearn = () => {
+    const correct = answers.filter((a) => a.isCorrect).length;
+    const wrong = answers.filter((a) => !a.isCorrect).length;
+    const wrongItems = answers.filter((a) => !a.isCorrect).map((a) => a.item);
+    setCompleteSummary({ correct, wrong, wrongItems });
+    repo.clearSession('schedule');
+    setPage(PAGES.COMPLETE);
+  };
+
+  const renderPage = () => {
+    if (page === PAGES.DASH) return <Dashboard repo={repo} onStartLearn={startLearn} onNavigate={setPage} />;
+    if (page === PAGES.LEARN) {
+      return (
+        <LearnPage
+          queue={queue}
+          sessionId={sessionId}
+          answeredCount={answers.length}
+          totalCount={totalCount}
+          onAnswer={handleAnswer}
+          onFinish={finishLearn}
+          onAbort={() => {
+            setPage(PAGES.DASH);
+          }}
+        />
+      );
     }
-  };
-
-  // データインポート
-  const handleImport = async () => {
-    try {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'application/json';
-      input.onchange = async (e) => {
-        const file = e.target.files[0];
-        if (file) {
-          const reader = new FileReader();
-          reader.onload = async (event) => {
-            try {
-              const data = JSON.parse(event.target.result);
-              await importAllData(data);
-              await reloadWords();
-              await reloadCalendar();
-              alert('データをインポートしました!');
-              setCurrentPage('home');
-            } catch (error) {
-              console.error('Import failed:', error);
-              alert('インポートに失敗しました。ファイル形式を確認してください。');
-            }
-          };
-          reader.readAsText(file);
-        }
-      };
-      input.click();
-    } catch (error) {
-      console.error('Import failed:', error);
-      alert('インポートに失敗しました。');
+    if (page === PAGES.COMPLETE) {
+      return (
+        <LearnComplete
+          summary={completeSummary}
+          onBack={() => setPage(PAGES.DASH)}
+          onRetryWrong={() => {
+            const wrong = completeSummary?.wrongItems || [];
+            const wrongQueue = wrong.map((w) => ({ item: w, skill: 'A' }));
+            setQueue(wrongQueue);
+            setAnswers([]);
+            const sid = Date.now().toString();
+            setSessionId(sid);
+            setTotalCount(wrongQueue.length);
+            repo.saveSession('schedule', { id: sid, queue: wrongQueue, answers: [], totalCount: wrongQueue.length, currentIndex: 0 });
+            setPage(PAGES.LEARN);
+          }}
+        />
+      );
     }
+    if (page === PAGES.FREE) return <FreeReview onBack={() => setPage(PAGES.DASH)} />;
+    if (page === PAGES.WORDS) return <WordList repo={repo} ready={ready} onBack={() => setPage(PAGES.DASH)} />;
+    if (page === PAGES.SETTINGS) return <Settings repo={repo} onBack={() => setPage(PAGES.DASH)} />;
+    if (page === PAGES.DATA) return <DataManagement repo={repo} onBack={() => setPage(PAGES.DASH)} />;
+    return null;
   };
 
-  // 全データ削除
-  const handleClearAll = async () => {
-    if (window.confirm('すべてのデータを削除しますか？この操作は取り消せません。')) {
-      if (window.confirm('本当によろしいですか？')) {
-        try {
-          await clearAllData();
-          await reloadWords();
-          await reloadCalendar();
-          alert('すべてのデータを削除しました。');
-          setCurrentPage('home');
-        } catch (error) {
-          console.error('Clear all failed:', error);
-          alert('データの削除に失敗しました。');
-        }
-      }
-    }
-  };
-
-  // ローディング中
-  if (isLoading) {
+  if (!ready) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">読み込み中...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="card">読み込み中...</div>
       </div>
     );
   }
 
-  // ページのレンダリング
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'home':
-        return (
-          <HomePage
-            words={words}
-            calendar={calendar}
-            settings={settings}
-            onStartLearning={startLearning}
-            onAddWord={() => setShowAddWordModal(true)}
-            onNavigate={setCurrentPage}
-          />
-        );
-      case 'wordlist':
-        return (
-          <WordListPage
-            words={words}
-            onUpdateWord={updateWord}
-            onDeleteWord={deleteWord}
-            onAddWord={() => setShowAddWordModal(true)}
-            editWordId={editWordId}
-            onEditHandled={() => setEditWordId(null)}
-          />
-        );
-      case 'learning':
-        return (
-          <LearningPage
-            words={words}
-            mode={learningMode}
-            settings={settings}
-            onComplete={completeLearning}
-            onUpdateWord={updateWord}
-            customWords={customLearningWords}
-          />
-        );
-      case 'statistics':
-        return (
-          <StatisticsPage
-            words={words}
-            calendar={calendar}
-            unlockedBadges={unlockedBadges}
-            onUnlockBadge={unlockBadge}
-            onOpenWord={(id) => {
-              setEditWordId(id);
-              setCurrentPage('wordlist');
-            }}
-          />
-        );
-      case 'settings':
-        return (
-          <SettingsPage
-            settings={settings}
-            words={words}
-            onUpdateSetting={updateSetting}
-            onExport={handleExport}
-            onImport={handleImport}
-            onClearAll={handleClearAll}
-          />
-        );
-      default:
-        return null;
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      {/* メインコンテンツ */}
-      <div className="pb-20">
-        {renderPage()}
-      </div>
-
-      {/* 単語追加モーダル */}
-      {showAddWordModal && (
-        <AddWordModal
-          onClose={() => setShowAddWordModal(false)}
-          onSave={handleAddWord}
-        />
-      )}
-
-      {/* ボトムナビゲーション（学習中は非表示） */}
-      {currentPage !== 'learning' && (
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg">
-          <div className="max-w-md mx-auto grid grid-cols-4 gap-1">
-            <button
-              onClick={() => setCurrentPage('home')}
-              className={`flex flex-col items-center py-3 px-2 ${
-                currentPage === 'home' ? 'text-indigo-600' : 'text-gray-600'
-              }`}
-            >
-              <Home size={24} />
-              <span className="text-xs mt-1">ホーム</span>
-            </button>
-            <button
-              onClick={() => setCurrentPage('wordlist')}
-              className={`flex flex-col items-center py-3 px-2 ${
-                currentPage === 'wordlist' ? 'text-indigo-600' : 'text-gray-600'
-              }`}
-            >
-              <BookOpen size={24} />
-              <span className="text-xs mt-1">単語帳</span>
-            </button>
-            <button
-              onClick={() => setCurrentPage('statistics')}
-              className={`flex flex-col items-center py-3 px-2 ${
-                currentPage === 'statistics' ? 'text-indigo-600' : 'text-gray-600'
-              }`}
-            >
-              <BarChart3 size={24} />
-              <span className="text-xs mt-1">統計</span>
-            </button>
-            <button
-              onClick={() => setCurrentPage('settings')}
-              className={`flex flex-col items-center py-3 px-2 ${
-                currentPage === 'settings' ? 'text-indigo-600' : 'text-gray-600'
-              }`}
-            >
-              <SettingsIcon size={24} />
-              <span className="text-xs mt-1">設定</span>
-            </button>
-          </div>
+    <div className="app-shell">
+      <header className="app-header">
+        <div className="app-title">English Learning</div>
+      </header>
+      <main className="app-main">
+        <div className="container">
+          {renderPage()}
+        </div>
+      </main>
+      <footer className="app-footer">
+        <nav className="app-nav">
+          <button className={`md-btn text nav-btn ${page === PAGES.DASH ? 'active' : ''}`} onClick={() => setPage(PAGES.DASH)}>
+            <span className="nav-icon">🏠</span>
+            <span className="nav-label">ダッシュボード</span>
+          </button>
+          <button className={`md-btn text nav-btn ${page === PAGES.LEARN ? 'active' : ''}`} onClick={() => setPage(PAGES.LEARN)}>
+            <span className="nav-icon">📝</span>
+            <span className="nav-label">学習</span>
+          </button>
+          <button className={`md-btn text nav-btn ${page === PAGES.FREE ? 'active' : ''}`} onClick={() => setPage(PAGES.FREE)}>
+            <span className="nav-icon">📖</span>
+            <span className="nav-label">自由復習</span>
+          </button>
+          <button className={`md-btn text nav-btn ${page === PAGES.WORDS ? 'active' : ''}`} onClick={() => setPage(PAGES.WORDS)}>
+            <span className="nav-icon">📚</span>
+            <span className="nav-label">単語</span>
+          </button>
+          <button className={`md-btn text nav-btn ${page === PAGES.SETTINGS ? 'active' : ''}`} onClick={() => setPage(PAGES.SETTINGS)}>
+            <span className="nav-icon">⚙️</span>
+            <span className="nav-label">設定</span>
+          </button>
+          <button className={`md-btn text nav-btn ${page === PAGES.DATA ? 'active' : ''}`} onClick={() => setPage(PAGES.DATA)}>
+            <span className="nav-icon">🗂️</span>
+            <span className="nav-label">データ</span>
+          </button>
         </nav>
-      )}
+      </footer>
     </div>
   );
 }
