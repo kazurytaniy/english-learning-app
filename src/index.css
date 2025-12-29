@@ -59,18 +59,37 @@ a { color: inherit; text-decoration: none; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 6px 10px;
-  min-width: 72px;
+  gap: 4px;
+  padding: 10px 12px;
+  min-width: 80px;
+  background: #f8fafc;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  color: #4b5563;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
 }
 .nav-icon {
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1;
+  color: inherit;
 }
 .nav-label {
   font-size: 11px;
   color: inherit;
   white-space: nowrap;
+}
+.nav-btn.active {
+  background: #e0e7ff;
+  color: #2563eb;
+  border-color: #cbd5e1;
+}
+.nav-btn.active .nav-label {
+  color: inherit;
+}
+.nav-btn:hover {
+  background: #eef2ff;
+  color: #2563eb;
+  border-color: #dbeafe;
 }
 .app-main {
   flex: 1;

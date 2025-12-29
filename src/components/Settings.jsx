@@ -199,7 +199,7 @@ export default function Settings({ repo, onBack }) {
         }
       `}</style>
 
-      <div className="settings-card" style={{ maxWidth: 640, width: '100%' }}>
+      <div className="settings-card" style={{ maxWidth: 980, width: '100%', margin: '0 auto' }}>
         <h2 className="settings-title">設定（間隔日数）</h2>
         <p className="settings-description">
           復習の間隔を設定します。重複は除外し、昇順で保存されます。

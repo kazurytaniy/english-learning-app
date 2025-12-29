@@ -4,7 +4,9 @@ import { Copy, Check } from 'lucide-react';
 export default function LearnComplete({ summary, onBack, onRetryWrong }) {
   const [copied, setCopied] = useState(false);
   const textSimple = useMemo(() => {
-    return summary?.wrongItems?.map((w) => `${w.en} / ${w.ja || ''}`).join('\n') || '';
+    const base = summary?.wrongItems?.map((w) => `${w.en} / ${w.ja || ''}`).join('\n') || '';
+    const advice = 'これらの英文を勉強する為のアドバイスを一つずつ教えて下さい。もし量が多い場合は複数に分けて一つ一つ丁寧にアドレスしてください。';
+    return base ? `${base}\n${advice}` : advice;
   }, [summary]);
 
   if (!summary) return null;
@@ -21,7 +23,7 @@ export default function LearnComplete({ summary, onBack, onRetryWrong }) {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 word-page">
-      <div className="form-card" style={{ maxWidth: 560, width: '100%' }}>
+      <div className="form-card" style={{ maxWidth: 980, width: '100%', margin: '0 auto' }}>
         <h2 style={{ marginTop: 0, textAlign: 'center' }}>学習完了</h2>
         <p style={{ textAlign: 'center' }}>正解: {summary.correct} / 不正解: {summary.wrong}</p>
 

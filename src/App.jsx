@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Home, PenSquare, Repeat, BookOpen, Settings as Gear, Database } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import LearnPage from './components/LearnPage';
 import LearnComplete from './components/LearnComplete';
@@ -30,7 +31,7 @@ function App() {
         setReady(true);
       } catch (e) {
         console.error('Failed to init repo', e);
-        setInitError('データベースの初期化に失敗しました。ブラウザをリロードするか、IndexedDB をクリアして再度お試しください。');
+        setInitError('データベースの初期化に失敗しました。ブラウザをリロードするか IndexedDB をクリアして再度お試しください。');
         setReady(true); // UIは表示しておく
       }
     };
@@ -45,27 +46,27 @@ function App() {
     const saved = await repo.getSession('schedule');
     const todayQueue = await buildTodayQueue(repo, skills);
     if (saved && saved.queue && saved.queue.length > 0 && !options.forceNew) {
-      const answers = saved.answers || [];
+      const prevAnswers = saved.answers || [];
       const seen = new Set();
       for (const q of saved.queue) {
         seen.add(`${q.item.id}-${q.skill}`);
       }
-      for (const a of answers) {
+      for (const a of prevAnswers) {
         seen.add(`${a.item.id}-${a.skill}`);
       }
       const additions = todayQueue.filter((q) => !seen.has(`${q.item.id}-${q.skill}`));
       const mergedQueue = [...saved.queue, ...additions];
-      const total = answers.length + mergedQueue.length;
+      const total = prevAnswers.length + mergedQueue.length;
       await repo.saveSession('schedule', {
         id: saved.id || 'schedule',
         queue: mergedQueue,
-        answers,
+        answers: prevAnswers,
         totalCount: total,
         skills,
         currentIndex: 0,
       });
       setQueue(mergedQueue);
-      setAnswers(answers);
+      setAnswers(prevAnswers);
       setSessionId(saved.id || 'schedule');
       setTotalCount(total);
       setPage(PAGES.LEARN);
@@ -181,7 +182,7 @@ function App() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="card" style={{ maxWidth: 520 }}>
           <p style={{ color: '#dc2626' }}>{initError}</p>
-          <p className="muted">それでも進まない場合はブラウザのサイトデータ（IndexedDB）を消去してから再読み込みしてください。</p>
+          <p className="muted">それでも進まない場合は、ブラウザのサイトデータ（IndexedDB など）を消去してから再読み込みしてください。</p>
         </div>
       </div>
     );
@@ -189,7 +190,6 @@ function App() {
 
   return (
     <div className="app-shell">
-
       <main className="app-main">
         <div className="container">
           {renderPage()}
@@ -198,27 +198,27 @@ function App() {
       <footer className="app-footer">
         <nav className="app-nav">
           <button className={`md-btn text nav-btn ${page === PAGES.DASH ? 'active' : ''}`} onClick={() => setPage(PAGES.DASH)}>
-            <span className="nav-icon">🏠</span>
+            <Home size={18} className="nav-icon" />
             <span className="nav-label">ホーム</span>
           </button>
           <button className={`md-btn text nav-btn ${(page === PAGES.LEARN || page === PAGES.LEARN_MODE) ? 'active' : ''}`} onClick={() => setPage(PAGES.LEARN_MODE)}>
-            <span className="nav-icon">📝</span>
+            <PenSquare size={18} className="nav-icon" />
             <span className="nav-label">学習</span>
           </button>
           <button className={`md-btn text nav-btn ${page === PAGES.FREE ? 'active' : ''}`} onClick={() => setPage(PAGES.FREE)}>
-            <span className="nav-icon">📖</span>
+            <Repeat size={18} className="nav-icon" />
             <span className="nav-label">復習</span>
           </button>
           <button className={`md-btn text nav-btn ${page === PAGES.WORDS ? 'active' : ''}`} onClick={() => setPage(PAGES.WORDS)}>
-            <span className="nav-icon">📚</span>
+            <BookOpen size={18} className="nav-icon" />
             <span className="nav-label">単語</span>
           </button>
           <button className={`md-btn text nav-btn ${page === PAGES.SETTINGS ? 'active' : ''}`} onClick={() => setPage(PAGES.SETTINGS)}>
-            <span className="nav-icon">⚙️</span>
+            <Gear size={18} className="nav-icon" />
             <span className="nav-label">設定</span>
           </button>
           <button className={`md-btn text nav-btn ${page === PAGES.DATA ? 'active' : ''}`} onClick={() => setPage(PAGES.DATA)}>
-            <span className="nav-icon">🗂️</span>
+            <Database size={18} className="nav-icon" />
             <span className="nav-label">データ</span>
           </button>
         </nav>

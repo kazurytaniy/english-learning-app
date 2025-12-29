@@ -28,7 +28,7 @@ export default function LearnPage({
   if (!current) {
     return (
       <div className="min-h-screen flex items-center justify-center word-page">
-        <div className="form-card" style={{ textAlign: 'center', maxWidth: 520, width: '100%' }}>
+        <div className="form-card" style={{ textAlign: 'center', maxWidth: 980, width: '100%', margin: '0 auto' }}>
           <p>学習完了</p>
           <button className="btn btn-primary" onClick={onFinish}>完了画面へ</button>
           <div style={{ marginTop: 8 }}>
@@ -74,7 +74,7 @@ export default function LearnPage({
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 word-page">
-      <div className="form-card" style={{ maxWidth: 520, width: '100%', textAlign: 'center' }}>
+      <div className="form-card" style={{ maxWidth: 980, width: '100%', textAlign: 'center', margin: '0 auto' }}>
         <div className="muted" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>{current.skill === 'A' ? '英→日' : current.skill === 'B' ? '日→英' : 'Listening'}</span>
           <span className="muted">{progressCurrent} / {progressTotal}</span>
@@ -97,20 +97,33 @@ export default function LearnPage({
           <div className="muted">{jaText ? '単語・フレーズ' : ''}</div>
         </div>
         {showAnswer && (
-          <div className="row" style={{ justifyContent: 'center' }}>
-            <button onClick={() => handleGrade(true)} className="md-btn primary">
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              gap: 12,
+              flexWrap: 'nowrap',
+              width: '100%',
+            }}
+          >
+            <button
+              onClick={() => handleGrade(true)}
+              className="md-btn"
+              style={{ background: '#22c55e', color: '#fff', flex: 1, minWidth: '45%' }}
+            >
               <Check size={16} style={{ marginRight: 6 }} />
               正解
             </button>
-            <button onClick={() => handleGrade(false)} className="md-btn danger">
+            <button
+              onClick={() => handleGrade(false)}
+              className="md-btn danger"
+              style={{ flex: 1, minWidth: '45%' }}
+            >
               <X size={16} style={{ marginRight: 6 }} />
               不正解
             </button>
           </div>
         )}
-        <div className="mt-4">
-          <button className="btn btn-ghost" onClick={onAbort}>中断して戻る</button>
-        </div>
       </div>
     </div>
   );

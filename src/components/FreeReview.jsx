@@ -161,7 +161,7 @@ export default function FreeReview({ onBack, repo }) {
     const wrongItems = results.filter((r) => !r.correct).map((r) => r.item);
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-4 word-page">
-        <div className="card" style={{ maxWidth: 520, width: '100%', textAlign: 'center' }}>
+        <div className="card" style={{ maxWidth: 980, width: '100%', textAlign: 'center', margin: '0 auto' }}>
           <h2 style={{ marginTop: 0 }}>自由復習 完了</h2>
           <div className="row" style={{ justifyContent: 'center' }}>
             <span className="muted">正解: {correct}</span>
@@ -201,7 +201,7 @@ export default function FreeReview({ onBack, repo }) {
         : (jaText || current.item.en);
     return (
       <div className="min-h-screen flex items-center justify-center px-4 word-page">
-        <div className="card" style={{ maxWidth: 520, width: '100%', textAlign: 'center' }}>
+        <div className="card" style={{ maxWidth: 980, width: '100%', textAlign: 'center', margin: '0 auto' }}>
           <div className="muted" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>{SKILLS.find((s) => s.id === current.skill)?.label}</span>
             <span className="muted">{currentIndex + 1} / {queue.length}</span>
@@ -223,20 +223,33 @@ export default function FreeReview({ onBack, repo }) {
             )}
           </div>
           {showAnswer && (
-            <div className="row" style={{ justifyContent: 'center' }}>
-              <button onClick={() => handleGrade(true)} className="md-btn primary">
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: 12,
+                flexWrap: 'nowrap',
+                width: '100%',
+              }}
+            >
+              <button
+                onClick={() => handleGrade(true)}
+                className="md-btn"
+                style={{ background: '#22c55e', color: '#fff', flex: 1, minWidth: '45%' }}
+              >
                 <Check size={16} style={{ marginRight: 6 }} />
                 正解
               </button>
-              <button onClick={() => handleGrade(false)} className="md-btn danger">
+              <button
+                onClick={() => handleGrade(false)}
+                className="md-btn danger"
+                style={{ flex: 1, minWidth: '45%' }}
+              >
                 <X size={16} style={{ marginRight: 6 }} />
                 不正解
               </button>
             </div>
           )}
-          <div className="mt-4">
-            <button className="md-btn text" onClick={stopReview}>中断して戻る</button>
-          </div>
         </div>
       </div>
     );
@@ -542,10 +555,10 @@ export default function FreeReview({ onBack, repo }) {
         }
       `}</style>
 
-      <div className="form-card" style={{ maxWidth: 860, width: '100%' }}>
+      <div className="form-card" style={{ maxWidth: 980, width: '100%', margin: '0 auto' }}>
         <h2 style={{ margin: '0 0 20px 0', fontSize: 20, fontWeight: 700 }}>復習</h2>
 
-        <div className="filter-card" style={{ maxWidth: 860, width: '100%' }}>
+        <div className="filter-card" style={{ maxWidth: 980, width: '100%', margin: '0 auto' }}>
           <div className="filter-title">
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -625,7 +638,7 @@ export default function FreeReview({ onBack, repo }) {
           </button>
         </div>
 
-        <div className="skill-card" style={{ maxWidth: 860, width: '100%' }}>
+        <div className="skill-card" style={{ maxWidth: 980, width: '100%', margin: '0 auto' }}>
           <div className="skill-label">スキル選択</div>
           <div className="skill-buttons">
             {SKILLS.map((s) => (
@@ -647,7 +660,7 @@ export default function FreeReview({ onBack, repo }) {
           </div>
         </div>
 
-        <div style={{ maxWidth: 860, width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ maxWidth: 980, width: '100%', display: 'flex', flexDirection: 'column', gap: 16, margin: '0 auto' }}>
           {filteredItems.map((item) => {
             const stats = progressMap[item.id] || {
               total: { correct: 0, wrong: 0, attempts: 0, accuracy: 0 },

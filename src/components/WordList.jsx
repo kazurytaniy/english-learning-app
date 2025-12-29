@@ -851,7 +851,7 @@ export default function WordList({ repo, ready, onBack }) {
         }
       `}</style>
 
-      <div className="summary-card">
+      <div className="summary-card" style={{ maxWidth: 980, margin: '0 auto' }}>
         <div className="summary-header">
           <div>
             <div className="summary-title">単語サマリー</div>
@@ -908,7 +908,7 @@ export default function WordList({ repo, ready, onBack }) {
         </div>
       </div>
 
-      <div className="form-card" style={{ maxWidth: 860, width: '100%' }}>
+      <div className="form-card" style={{ maxWidth: 980, width: '100%', margin: '0 auto' }}>
         <h2 style={{ margin: '0 0 20px 0', fontSize: 20, fontWeight: 700 }}>単語管理</h2>
 
         <div className="form-group">
@@ -1057,7 +1057,7 @@ export default function WordList({ repo, ready, onBack }) {
         </div>
       </div>
 
-      <div className="filter-card" style={{ maxWidth: 860, width: '100%' }}>
+      <div className="filter-card" style={{ maxWidth: 980, width: '100%', margin: '0 auto' }}>
         <div className="filter-title">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1134,7 +1134,7 @@ export default function WordList({ repo, ready, onBack }) {
         </button>
       </div>
 
-      <div style={{ maxWidth: 860, width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ maxWidth: 980, width: '100%', display: 'flex', flexDirection: 'column', gap: 16, margin: '0 auto' }}>
         {filteredItems.map((item) => {
           const stat = statsByItem[item.id] || {
             total: { correct: 0, wrong: 0, attempts: 0, accuracy: 0 },

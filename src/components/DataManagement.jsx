@@ -49,7 +49,7 @@ export default function DataManagement({ repo, onBack }) {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4 word-page">
-      <div className="form-card" style={{ maxWidth: 560, width: '100%' }}>
+      <div className="form-card" style={{ maxWidth: 980, width: '100%', margin: '0 auto' }}>
         <h2 style={{ marginTop: 0 }}>データ管理</h2>
         <p className="muted">JSONでインポート / エクスポートができます。</p>
 
