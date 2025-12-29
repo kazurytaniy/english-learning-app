@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { STATUS_LEVELS } from '../utils/constants';
 
 const uniqueTags = (tags) => Array.from(new Set(tags.filter(Boolean)));
@@ -13,6 +13,16 @@ const STATUS_COLORS = {
   '話せる': { bg: '#4caf50', text: '#fff' },
   '書ける': { bg: '#2196f3', text: '#fff' },
   'マスター': { bg: 'linear-gradient(135deg, #d4a000 0%, #ffd700 50%, #d4a000 100%)', text: '#333' },
+};
+
+const formatDue = (s) => {
+  if (!s) return '未設定';
+  if (s.length === 10) return s;
+  try {
+    return new Date(s).toISOString().slice(0, 10);
+  } catch {
+    return s;
+  }
 };
 
 const SKILLS = [
@@ -63,6 +73,7 @@ const CloseIcon = ({ size = 12 }) => (
 );
 
 export default function WordList({ repo, ready, onBack }) {
+  const topRef = useRef(null);
   const [en, setEn] = useState('');
   const [jaList, setJaList] = useState(['']);
   const [example, setExample] = useState('');
@@ -146,6 +157,11 @@ export default function WordList({ repo, ready, onBack }) {
     setStatus(item.status || STATUS_LEVELS[0]);
     setCategory(item.category || CATEGORIES[0]);
     setSelectedTags(item.tags || []);
+    if (topRef.current?.scrollIntoView) {
+      topRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const removeItem = async (item) => {
@@ -218,6 +234,15 @@ export default function WordList({ repo, ready, onBack }) {
     });
   }, [items, filterCategory, filterStatus, filterTag, maxAccuracy, statsByItem, searchTrigger]);
 
+  const summary = useMemo(() => {
+    const statusCounts = STATUS_LEVELS.reduce((acc, statusLabel) => ({ ...acc, [statusLabel]: 0 }), {});
+    for (const item of items) {
+      const key = STATUS_LEVELS.includes(item.status) ? item.status : STATUS_LEVELS[0];
+      statusCounts[key] = (statusCounts[key] ?? 0) + 1;
+    }
+    return { total: items.length, statusCounts };
+  }, [items]);
+
   const getStatusStyle = (s) => {
     const color = STATUS_COLORS[s] || STATUS_COLORS['まだまだ'];
     const isGradient = color.bg.includes('gradient');
@@ -237,7 +262,7 @@ export default function WordList({ repo, ready, onBack }) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center gap-4 px-4 py-6">
+    <div ref={topRef} className="min-h-screen flex flex-col items-center gap-4 px-4 py-6">
       <style>{`
         .form-card {
           background: #fff;
@@ -559,6 +584,81 @@ export default function WordList({ repo, ready, onBack }) {
           border-color: #4f46e5;
         }
         
+        /* サマリー */
+        .summary-card {
+          background: #fff;
+          border-radius: 16px;
+          padding: 20px;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+          width: 100%;
+          max-width: 860px;
+        }
+        .summary-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 12px;
+        }
+        .summary-title {
+          font-size: 16px;
+          font-weight: 700;
+          color: #111827;
+        }
+        .summary-sub {
+          font-size: 13px;
+          color: #6b7280;
+        }
+        .summary-total {
+          font-size: 28px;
+          font-weight: 800;
+          color: #4f46e5;
+        }
+        .summary-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+          gap: 12px;
+        }
+        .summary-item {
+          padding: 12px;
+          border-radius: 12px;
+          background: #f9fafb;
+          border: 1px solid #f3f4f6;
+        }
+        .summary-status {
+          font-size: 12px;
+          color: #6b7280;
+          margin-bottom: 4px;
+        }
+        .summary-count {
+          font-size: 20px;
+          font-weight: 700;
+          color: #111827;
+        }
+
+        /* 次回復習日 */
+        .due-section {
+          margin-top: 8px;
+        }
+        .due-row {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+          gap: 8px;
+          margin-top: 8px;
+        }
+        .due-item {
+          padding: 10px 12px;
+          border-radius: 10px;
+          background: #f9fafb;
+          border: 1px solid #f3f4f6;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .due-text {
+          font-size: 13px;
+          color: #4b5563;
+        }
+        
         /* 単語カード */
         .word-card {
           background: #fff;
@@ -712,6 +812,24 @@ export default function WordList({ repo, ready, onBack }) {
           line-height: 1.5;
         }
       `}</style>
+
+      <div className="summary-card">
+        <div className="summary-header">
+          <div>
+            <div className="summary-title">単語サマリー</div>
+            <div className="summary-sub">ステータス別の件数</div>
+          </div>
+          <div className="summary-total">{summary.total}件</div>
+        </div>
+        <div className="summary-grid">
+          {STATUS_LEVELS.map((s) => (
+            <div key={s} className="summary-item">
+              <div className="summary-status">{s}</div>
+              <div className="summary-count">{summary.statusCounts[s] || 0}</div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       <div className="form-card" style={{ maxWidth: 860, width: '100%' }}>
         <h2 style={{ margin: '0 0 20px 0', fontSize: 20, fontWeight: 700 }}>単語管理</h2>
@@ -946,9 +1064,9 @@ export default function WordList({ repo, ready, onBack }) {
             skills: {},
           };
           const statusStyle = getStatusStyle(item.status || 'まだまだ');
-          const skillA = stat.skills?.A || { correct: 0, wrong: 0, attempts: 0, accuracy: 0 };
-          const skillB = stat.skills?.B || { correct: 0, wrong: 0, attempts: 0, accuracy: 0 };
-          const skillC = stat.skills?.C || { correct: 0, wrong: 0, attempts: 0, accuracy: 0 };
+          const skillA = stat.skills?.A || { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '' };
+          const skillB = stat.skills?.B || { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '' };
+          const skillC = stat.skills?.C || { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '' };
 
           return (
             <div key={item.id} className="word-card">
@@ -1028,6 +1146,22 @@ export default function WordList({ repo, ready, onBack }) {
                     </span>
                   </div>
                 </div>
+                <div className="due-section">
+                  <div className="due-row">
+                    <div className="due-item">
+                      <span className="skill-badge">英→日</span>
+                      <span className="due-text">次回 {formatDue(skillA.next_due)}</span>
+                    </div>
+                    <div className="due-item">
+                      <span className="skill-badge">日→英</span>
+                      <span className="due-text">次回 {formatDue(skillB.next_due)}</span>
+                    </div>
+                    <div className="due-item">
+                      <span className="skill-badge">Listening</span>
+                      <span className="due-text">次回 {formatDue(skillC.next_due)}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           );
@@ -1053,9 +1187,9 @@ function buildStats(items, progressList) {
     map[item.id] = {
       total: { correct: 0, wrong: 0, attempts: 0, accuracy: 0 },
       skills: {
-        A: { correct: 0, wrong: 0, attempts: 0, accuracy: 0 },
-        B: { correct: 0, wrong: 0, attempts: 0, accuracy: 0 },
-        C: { correct: 0, wrong: 0, attempts: 0, accuracy: 0 },
+        A: { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '' },
+        B: { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '' },
+        C: { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '' },
       }
     };
   }
@@ -1069,6 +1203,7 @@ function buildStats(items, progressList) {
       entry.skills[skill].correct += correct;
       entry.skills[skill].wrong += wrong;
       entry.skills[skill].attempts += correct + wrong;
+      entry.skills[skill].next_due = prog.next_due || entry.skills[skill].next_due || '';
     }
     entry.total.correct += correct;
     entry.total.wrong += wrong;

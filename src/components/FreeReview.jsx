@@ -35,6 +35,16 @@ const getStatusStyle = (s) => {
   };
 };
 
+const formatDue = (s) => {
+  if (!s) return '未設定';
+  if (s.length === 10) return s;
+  try {
+    return new Date(s).toISOString().slice(0, 10);
+  } catch {
+    return s;
+  }
+};
+
 export default function FreeReview({ onBack, repo }) {
   const [items, setItems] = useState([]);
   const [tags, setTags] = useState([]);
@@ -425,6 +435,27 @@ export default function FreeReview({ onBack, repo }) {
           color: #6b7280;
           font-weight: 600;
         }
+
+        /* 次回復習 */
+        .due-row {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+          gap: 8px;
+          margin-top: 8px;
+        }
+        .due-item {
+          padding: 10px 12px;
+          border-radius: 10px;
+          background: #f9fafb;
+          border: 1px solid #f3f4f6;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .due-text {
+          font-size: 13px;
+          color: #4b5563;
+        }
         
         /* スキル選択カード */
         .skill-card {
@@ -621,14 +652,14 @@ export default function FreeReview({ onBack, repo }) {
             const stats = progressMap[item.id] || {
               total: { correct: 0, wrong: 0, attempts: 0, accuracy: 0 },
               skills: {
-                A: { correct: 0, wrong: 0, attempts: 0, accuracy: 0 },
-                B: { correct: 0, wrong: 0, attempts: 0, accuracy: 0 },
-                C: { correct: 0, wrong: 0, attempts: 0, accuracy: 0 },
+                A: { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '' },
+                B: { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '' },
+                C: { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '' },
               }
             };
-            const skillA = stats.skills?.A || { correct: 0, wrong: 0, attempts: 0, accuracy: 0 };
-            const skillB = stats.skills?.B || { correct: 0, wrong: 0, attempts: 0, accuracy: 0 };
-            const skillC = stats.skills?.C || { correct: 0, wrong: 0, attempts: 0, accuracy: 0 };
+            const skillA = stats.skills?.A || { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '' };
+            const skillB = stats.skills?.B || { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '' };
+            const skillC = stats.skills?.C || { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '' };
             const selected = selectedIds.includes(item.id);
             const statusStyle = getStatusStyle(item.status || 'まだまだ');
 
@@ -691,6 +722,20 @@ export default function FreeReview({ onBack, repo }) {
                       </span>
                     </div>
                   </div>
+                  <div className="due-row">
+                    <div className="due-item">
+                      <span className="skill-badge">英→日</span>
+                      <span className="due-text">次回 {formatDue(skillA.next_due)}</span>
+                    </div>
+                    <div className="due-item">
+                      <span className="skill-badge">日→英</span>
+                      <span className="due-text">次回 {formatDue(skillB.next_due)}</span>
+                    </div>
+                    <div className="due-item">
+                      <span className="skill-badge">Listening</span>
+                      <span className="due-text">次回 {formatDue(skillC.next_due)}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             );
@@ -718,9 +763,9 @@ function buildProgressMap(progressList) {
       map[id] = {
         total: { correct: 0, wrong: 0, attempts: 0, accuracy: 0 },
         skills: {
-          A: { correct: 0, wrong: 0, attempts: 0, accuracy: 0 },
-          B: { correct: 0, wrong: 0, attempts: 0, accuracy: 0 },
-          C: { correct: 0, wrong: 0, attempts: 0, accuracy: 0 },
+          A: { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '' },
+          B: { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '' },
+          C: { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '' },
         }
       };
     }
@@ -732,6 +777,7 @@ function buildProgressMap(progressList) {
       entry.skills[skill].correct += correct;
       entry.skills[skill].wrong += wrong;
       entry.skills[skill].attempts += correct + wrong;
+      entry.skills[skill].next_due = prog.next_due || entry.skills[skill].next_due || '';
     }
     entry.total.correct += correct;
     entry.total.wrong += wrong;
