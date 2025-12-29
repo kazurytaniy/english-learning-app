@@ -8,11 +8,12 @@ export default function LearnModeSelect({ repo, onStart, onReset, onBack }) {
 
   const loadCounts = async () => {
     if (!repo) return;
-    const [aQueue, bQueue] = await Promise.all([
+    const [aQueue, bQueue, cQueue] = await Promise.all([
       buildTodayQueue(repo, ['A']),
       buildTodayQueue(repo, ['B']),
+      buildTodayQueue(repo, ['C']),
     ]);
-    setCounts({ A: aQueue.length, B: bQueue.length, C: 0 });
+    setCounts({ A: aQueue.length, B: bQueue.length, C: cQueue.length });
   };
 
   useEffect(() => {
@@ -115,18 +116,18 @@ export default function LearnModeSelect({ repo, onStart, onReset, onBack }) {
             </div>
 
             {/* Listening */}
-            <div style={{ ...rowStyle, opacity: 0.6, borderBottom: 'none' }}>
+            <div style={{ ...rowStyle, borderBottom: 'none' }}>
               <div style={labelStyle}>Listening</div>
               <div style={countStyle}>
                 <span style={countNumberStyle}>{counts.C}</span> 件
               </div>
               <button
                 type="button"
-                className="btn btn-outline"
-                disabled
-                style={{ ...buttonStyle, cursor: 'not-allowed' }}
+                className="btn btn-primary"
+                style={buttonStyle}
+                onClick={() => handleStart(['C'])}
               >
-                休止中
+                開始
               </button>
             </div>
           </div>

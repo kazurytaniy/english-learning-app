@@ -134,10 +134,14 @@ export default function WordList({ repo, ready, onBack }) {
       category,
       tags: uniqueTags(selectedTags),
     };
+    let itemId = editingId;
     if (editingId) {
       await repo.updateItem({ id: editingId, ...payload });
     } else {
-      await repo.addItem(payload);
+      itemId = await repo.addItem(payload);
+    }
+    if (itemId) {
+      await ensureProgressForItem(repo, itemId);
     }
     await Promise.all(payload.tags.map((t) => repo.saveTag(t)));
     resetForm();
@@ -614,9 +618,9 @@ export default function WordList({ repo, ready, onBack }) {
           color: #4f46e5;
         }
         .summary-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-          gap: 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
         }
         .summary-item {
           padding: 12px;
@@ -624,15 +628,49 @@ export default function WordList({ repo, ready, onBack }) {
           background: #f9fafb;
           border: 1px solid #f3f4f6;
         }
-        .summary-status {
-          font-size: 12px;
-          color: #6b7280;
-          margin-bottom: 4px;
+        .summary-stacked {
+          width: 100%;
+        }
+        .summary-segments {
+          display: flex;
+          width: 100%;
+          height: 16px;
+          border-radius: 999px;
+          overflow: hidden;
+          background: #e5e7eb;
+        }
+        .summary-segment {
+          height: 100%;
+        }
+        .summary-legend {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: 8px;
+          font-size: 13px;
+          color: #4b5563;
+        }
+        .summary-legend-item {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 6px 10px;
+          border-radius: 10px;
+          background: #f3f4f6;
+        }
+        .summary-dot {
+          width: 12px;
+          height: 12px;
+          border-radius: 999px;
+          flex-shrink: 0;
         }
         .summary-count {
-          font-size: 20px;
           font-weight: 700;
           color: #111827;
+        }
+        .summary-percent {
+          font-weight: 600;
+          color: #6b7280;
         }
 
         /* 次回復習日 */
@@ -822,12 +860,51 @@ export default function WordList({ repo, ready, onBack }) {
           <div className="summary-total">{summary.total}件</div>
         </div>
         <div className="summary-grid">
-          {STATUS_LEVELS.map((s) => (
-            <div key={s} className="summary-item">
-              <div className="summary-status">{s}</div>
-              <div className="summary-count">{summary.statusCounts[s] || 0}</div>
+          <div className="summary-item">
+            <div className="summary-stacked">
+              <div className="summary-segments">
+                {STATUS_LEVELS.map((s) => {
+                  const count = summary.statusCounts[s] || 0;
+                  const pct = summary.total ? Math.round((count / summary.total) * 100) : 0;
+                  if (pct === 0) return null;
+                  const color = getStatusStyle(s);
+                  return (
+                    <div
+                      key={s}
+                      className="summary-segment"
+                      style={{
+                        width: `${pct}%`,
+                        background: color.background,
+                        ...(color.backgroundImage ? { backgroundImage: color.backgroundImage } : {}),
+                      }}
+                      title={`${s}: ${count} (${pct}%)`}
+                    />
+                  );
+                })}
+              </div>
             </div>
-          ))}
+            <div className="summary-legend">
+              {STATUS_LEVELS.map((s) => {
+                const count = summary.statusCounts[s] || 0;
+                const pct = summary.total ? Math.round((count / summary.total) * 100) : 0;
+                const color = getStatusStyle(s);
+                return (
+                  <div key={s} className="summary-legend-item">
+                    <span
+                      className="summary-dot"
+                      style={{
+                        background: color.background,
+                        ...(color.backgroundImage ? { backgroundImage: color.backgroundImage } : {}),
+                      }}
+                    />
+                    <span>{s}</span>
+                    <span className="summary-count">{count}</span>
+                    <span className="summary-percent">({pct}%)</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1220,4 +1297,24 @@ function buildStats(items, progressList) {
     }
   }
   return map;
+}
+
+async function ensureProgressForItem(repo, itemId) {
+  const today = new Date().toISOString().slice(0, 10);
+  for (const skill of ['A', 'B', 'C']) {
+    const existing = await repo.getProgress(itemId, skill);
+    if (!existing) {
+      await repo.saveProgress({
+        id: `${itemId}-${skill}`,
+        item_id: itemId,
+        skill,
+        stage: 0,
+        next_due: today,
+        correct_count: 0,
+        wrong_count: 0,
+        accuracy: 0,
+        mastered: false,
+      });
+    }
+  }
 }

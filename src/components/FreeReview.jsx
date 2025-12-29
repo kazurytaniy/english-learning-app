@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Check, X, Volume2 } from 'lucide-react';
+import { Check, X, Mic } from 'lucide-react';
 
 const SKILLS = [
   { id: 'A', label: '英→日' },
@@ -216,8 +216,8 @@ export default function FreeReview({ onBack, repo }) {
             {isListening && (
               <div style={{ marginTop: 10 }}>
                 <button className="md-btn filled" onClick={(e) => { e.stopPropagation(); playAudio(current.item); }}>
-                  <Volume2 size={16} style={{ marginRight: 6 }} />
-                  音声を再生
+                  <Mic size={16} style={{ marginRight: 6 }} />
+                  再生
                 </button>
               </div>
             )}

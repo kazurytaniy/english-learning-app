@@ -31,7 +31,13 @@ export async function computeStats(repo) {
   const todayCorrect = todayAttempts.filter((a) => a.result).length;
   const todayAccuracy = todayLearned ? Math.round((todayCorrect / todayLearned) * 100) : 0;
 
-  const todayQueue = (await buildTodayQueue(repo, ['A', 'B'])).length;
+  // スキルごとの本日キュー件数を取得し、合算して「今日の学習」件数とする
+  const [todayA, todayB, todayC] = await Promise.all([
+    buildTodayQueue(repo, ['A']),
+    buildTodayQueue(repo, ['B']),
+    buildTodayQueue(repo, ['C']),
+  ]);
+  const todayQueue = todayA.length + todayB.length + todayC.length;
 
   const stats = {
     totalItems: items.length,

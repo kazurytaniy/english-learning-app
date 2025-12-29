@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Check, X, Volume2 } from 'lucide-react';
+import { Check, X, Mic } from 'lucide-react';
 
 const getJaText = (item) => {
   if (!item) return '';
@@ -45,7 +45,7 @@ export default function LearnPage({
     ? current.item.en
     : current.skill === 'B'
       ? (jaText || current.item.en)
-      : '音声を再生してください';
+      : '音声を聴いてください';
   const answer = current.skill === 'A'
     ? (jaText || current.item.en)
     : current.skill === 'B'
@@ -85,16 +85,16 @@ export default function LearnPage({
           onClick={() => setShowAnswer(!showAnswer)}
         >
           <div className="muted" style={{ marginBottom: 6 }}>{showAnswer ? '答え' : 'タップして確認'}</div>
-          <h2 style={{ margin: '8px 0' }}>{showAnswer ? answer : question}</h2>
+          <h2 style={{ margin: '8px 0' }}>{showAnswer ? answer : (isListening ? '音声を聴いてください' : question)}</h2>
           {isListening && (
             <div style={{ marginTop: 10 }}>
               <button className="md-btn filled" onClick={(e) => { e.stopPropagation(); playAudio(); }}>
-                <Volume2 size={16} style={{ marginRight: 6 }} />
-                音声を再生
+                <Mic size={16} style={{ marginRight: 6 }} />
+                再生
               </button>
             </div>
           )}
-          <div className="muted">{jaText ? '単語/フレーズ' : ''}</div>
+          <div className="muted">{jaText ? '単語・フレーズ' : ''}</div>
         </div>
         {showAnswer && (
           <div className="row" style={{ justifyContent: 'center' }}>
