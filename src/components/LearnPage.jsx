@@ -87,7 +87,16 @@ export default function LearnPage({
           onClick={() => setShowAnswer(!showAnswer)}
         >
           <div className="muted" style={{ marginBottom: 6 }}>{showAnswer ? '答え' : 'タップして確認'}</div>
-          <h2 style={{ margin: '8px 0' }}>{showAnswer ? answer : (isListening ? '音声を聴いてください' : question)}</h2>
+
+          {showAnswer && isListening ? (
+            <div style={{ margin: '8px 0' }}>
+              <h2 style={{ fontSize: '2rem', marginBottom: '0.5rem', color: '#1f2937' }}>{current.item.en}</h2>
+              <div style={{ fontSize: '1.2rem', color: '#4b5563' }}>{jaText}</div>
+            </div>
+          ) : (
+            <h2 style={{ margin: '8px 0' }}>{showAnswer ? answer : (isListening ? '音声を聴いてください' : question)}</h2>
+          )}
+
           {isListening && (
             <div style={{ marginTop: 10 }}>
               <button className="md-btn filled" onClick={(e) => { e.stopPropagation(); playAudio(); }}>
@@ -96,7 +105,7 @@ export default function LearnPage({
               </button>
             </div>
           )}
-          <div className="muted">{jaText ? '単語・フレーズ' : ''}</div>
+          {!isListening && <div className="muted">{jaText ? '単語・フレーズ' : ''}</div>}
         </div>
         {showAnswer && (
           <div

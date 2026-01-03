@@ -854,56 +854,7 @@ export default function WordList({ repo, ready, onBack }) {
           line-height: 1.5;
         }
 
-        /* 統合された統計グリッド */
-        .stats-unified-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-          gap: 12px;
-        }
-        .stats-unified-item {
-          background: #f9fafb;
-          border: 1px solid #f3f4f6;
-          border-radius: 12px;
-          padding: 12px;
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-        .stats-unified-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-        .stats-text {
-          font-size: 13px;
-          color: #374151;
-          font-weight: 600;
-        }
-        .stats-sub {
-          font-size: 12px;
-          font-weight: 400;
-          color: #6b7280;
-          margin-left: 4px;
-        }
-        .due-row-unified {
-          font-size: 12px;
-          color: #6b7280;
-          border-top: 1px dashed #e5e7eb;
-          padding-top: 8px;
-        }
-        .status-box-unified {
-          align-items: center;
-          justify-content: center;
-          background: #fff;
-          border-color: #e5e7eb;
-        }
-        .status-label-small {
-          font-size: 11px;
-          color: #9ca3af;
-          margin-bottom: 4px;
-        }
+
       `}</style>
 
       <div className="summary-card" style={{ maxWidth: 980, margin: '0 auto' }}>
@@ -1292,13 +1243,12 @@ export default function WordList({ repo, ready, onBack }) {
                     </div>
                   </div>
 
-                  {/* Status */}
-                  <div className="stats-unified-item status-box-unified">
-                    <span className="status-label-small">ステータス</span>
-                    <span className="status-badge" style={statusStyle}>
-                      {item.status || 'まだまだ'}
-                    </span>
-                  </div>
+                </div>
+                <div className="word-status-row">
+                  <span className="status-label-small">ステータス</span>
+                  <span className="status-badge" style={statusStyle}>
+                    {item.status || 'まだまだ'}
+                  </span>
                 </div>
               </div>
             </div>

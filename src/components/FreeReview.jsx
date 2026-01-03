@@ -191,64 +191,135 @@ export default function FreeReview({ onBack, repo }) {
 
   if (isReviewing && current) {
     const jaText = getJaText(current.item);
-    const isListening = current.skill === 'C';
-    const question = current.skill === 'A'
-      ? current.item.en
-      : current.skill === 'B'
-        ? (jaText || current.item.en)
-        : '音声を再生してください';
-    const answer = current.skill === 'A'
-      ? (jaText || current.item.en)
-      : current.skill === 'B'
-        ? current.item.en
-        : (jaText || current.item.en);
+
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 word-page">
-        <div className="card" style={{ maxWidth: 980, width: '100%', textAlign: 'center', margin: '0 auto' }}>
-          <div className="muted" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>{SKILLS.find((s) => s.id === current.skill)?.label}</span>
-            <span className="muted">{currentIndex + 1} / {queue.length}</span>
+      <div className="min-h-screen flex items-center justify-center px-4 word-page" style={{ background: '#f9fafb' }}>
+        <div className="word-card" style={{ maxWidth: 600, width: '100%', margin: '0 auto', padding: '32px' }}>
+
+          {/* Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
+            <span className="category-badge" style={{ fontSize: 14, padding: '6px 12px' }}>
+              {SKILLS.find((s) => s.id === current.skill)?.label}
+            </span>
+            <span style={{ color: '#6b7280', fontSize: 14, fontWeight: 500 }}>
+              {currentIndex + 1} / {queue.length}
+            </span>
           </div>
+
+          {/* Card Content */}
           <div
-            className="card"
-            style={{ background: '#f9fafb', marginTop: 12, marginBottom: 12, cursor: 'pointer' }}
             onClick={() => setShowAnswer(!showAnswer)}
+            style={{
+              cursor: 'pointer',
+              minHeight: 240,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              textAlign: 'center'
+            }}
           >
-            <div className="muted" style={{ marginBottom: 6 }}>{showAnswer ? '答え' : 'タップして確認'}</div>
-            <h2 style={{ margin: '8px 0' }}>{showAnswer ? answer : question}</h2>
-            {isListening && (
-              <div style={{ marginTop: 10 }}>
-                <button className="md-btn filled" onClick={(e) => { e.stopPropagation(); playAudio(current.item); }}>
-                  <Mic size={16} style={{ marginRight: 6 }} />
-                  再生
+            {/* Question */}
+            <div style={{ marginBottom: showAnswer ? 24 : 0 }}>
+              {current.skill === 'A' && (
+                <div className="word-en" style={{ fontSize: 42 }}>{current.item.en}</div>
+              )}
+              {current.skill === 'B' && (
+                <div className="word-ja" style={{ fontSize: 28, color: '#1f2937', marginTop: 0 }}>{jaText || current.item.en}</div>
+              )}
+              {current.skill === 'C' && (
+                <button
+                  className="md-btn filled"
+                  onClick={(e) => { e.stopPropagation(); playAudio(current.item); }}
+                  style={{ borderRadius: '50%', width: 80, height: 80, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <Mic size={40} />
                 </button>
+              )}
+            </div>
+
+            {/* Answer */}
+            {showAnswer && (
+              <div style={{ animation: 'fadeIn 0.3s ease' }}>
+                {current.skill !== 'A' && (
+                  <div className="word-en" style={{ fontSize: current.skill === 'B' ? 42 : 32, marginBottom: 8 }}>
+                    {current.item.en}
+                  </div>
+                )}
+                {current.skill !== 'B' && (
+                  <div className="word-ja" style={{ fontSize: 18 }}>
+                    {jaText}
+                  </div>
+                )}
+                {/* Audio button for non-listening skills if answer is shown */}
+                {current.skill !== 'C' && (
+                  <div style={{ marginTop: 16 }}>
+                    <button
+                      className="icon-btn"
+                      onClick={(e) => { e.stopPropagation(); playAudio(current.item); }}
+                      style={{ background: '#f3f4f6', width: 40, height: 40, borderRadius: '50%', margin: '0 auto' }}
+                    >
+                      <Mic size={20} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!showAnswer && (
+              <div style={{ marginTop: 32, color: '#9ca3af', fontSize: 13, fontWeight: 500 }}>
+                タップして答えを表示
               </div>
             )}
           </div>
+
+          {/* Action Buttons */}
           {showAnswer && (
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                gap: 12,
-                flexWrap: 'nowrap',
-                width: '100%',
-              }}
-            >
+            <div style={{
+              display: 'flex',
+              gap: 16,
+              marginTop: 32,
+              paddingTop: 24,
+              borderTop: '1px solid #f3f4f6'
+            }}>
               <button
                 onClick={() => handleGrade(true)}
                 className="md-btn"
-                style={{ background: '#22c55e', color: '#fff', flex: 1, minWidth: '45%' }}
+                style={{
+                  background: '#22c55e',
+                  color: '#fff',
+                  flex: 1,
+                  height: 48,
+                  fontSize: 16,
+                  borderRadius: 12,
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8
+                }}
               >
-                <Check size={16} style={{ marginRight: 6 }} />
+                <Check size={20} />
                 正解
               </button>
               <button
                 onClick={() => handleGrade(false)}
-                className="md-btn danger"
-                style={{ flex: 1, minWidth: '45%' }}
+                className="md-btn"
+                style={{
+                  background: '#ef4444',
+                  color: '#fff',
+                  flex: 1,
+                  height: 48,
+                  fontSize: 16,
+                  borderRadius: 12,
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8
+                }}
               >
-                <X size={16} style={{ marginRight: 6 }} />
+                <X size={20} />
                 不正解
               </button>
             </div>
@@ -706,60 +777,58 @@ export default function FreeReview({ onBack, repo }) {
                 )}
 
                 <div className="stats-section" style={{ marginLeft: 34 }}>
-                  {/* 1行目: 英→日 と 日→英 */}
-                  <div className="stats-row">
-                    <div className="stat-item">
-                      <span className={`skill-badge skill-badge-a ${skill === 'A' ? 'active' : ''}`}>英→日</span>
-                      <span className="stat-text">
-                        {skillA.correct}/{skillA.attempts}
-                        <span className="stat-accuracy"> 正解率 {skillA.accuracy}%</span>
-                      </span>
+                  <div className="stats-unified-grid">
+                    {/* 英→日 */}
+                    <div className="stats-unified-item">
+                      <div className="stats-unified-row">
+                        <span className="skill-badge skill-badge-a">英→日</span>
+                        <span className="stats-text">
+                          {skillA.correct}/{skillA.attempts}
+                          <span className="stats-sub">({skillA.accuracy}%)</span>
+                        </span>
+                      </div>
+                      <div className="stats-unified-row due-row-unified">
+                        <span>次回: {formatDue(skillA.next_due)}</span>
+                        {skillA.stage !== undefined && intervals[skillA.stage] !== undefined && <span>{intervals[skillA.stage]}日後</span>}
+                      </div>
                     </div>
-                    <div className="stat-item">
-                      <span className={`skill-badge skill-badge-b ${skill === 'B' ? 'active' : ''}`}>日→英</span>
-                      <span className="stat-text">
-                        {skillB.correct}/{skillB.attempts}
-                        <span className="stat-accuracy"> 正解率 {skillB.accuracy}%</span>
-                      </span>
+
+                    {/* 日→英 */}
+                    <div className="stats-unified-item">
+                      <div className="stats-unified-row">
+                        <span className="skill-badge skill-badge-b">日→英</span>
+                        <span className="stats-text">
+                          {skillB.correct}/{skillB.attempts}
+                          <span className="stats-sub">({skillB.accuracy}%)</span>
+                        </span>
+                      </div>
+                      <div className="stats-unified-row due-row-unified">
+                        <span>次回: {formatDue(skillB.next_due)}</span>
+                        {skillB.stage !== undefined && intervals[skillB.stage] !== undefined && <span>{intervals[skillB.stage]}日後</span>}
+                      </div>
+                    </div>
+
+                    {/* Listening */}
+                    <div className="stats-unified-item">
+                      <div className="stats-unified-row">
+                        <span className="skill-badge skill-badge-c">Listening</span>
+                        <span className="stats-text">
+                          {skillC.correct}/{skillC.attempts}
+                          <span className="stats-sub">({skillC.accuracy}%)</span>
+                        </span>
+                      </div>
+                      <div className="stats-unified-row due-row-unified">
+                        <span>次回: {formatDue(skillC.next_due)}</span>
+                        {skillC.stage !== undefined && intervals[skillC.stage] !== undefined && <span>{intervals[skillC.stage]}日後</span>}
+                      </div>
                     </div>
                   </div>
-                  {/* 2行目: Listening と ステータス */}
-                  <div className="stats-row">
-                    <div className="stat-item">
-                      <span className={`skill-badge skill-badge-c ${skill === 'C' ? 'active' : ''}`}>Listening</span>
-                      <span className="stat-text">
-                        {skillC.correct}/{skillC.attempts}
-                        <span className="stat-accuracy"> 正解率 {skillC.accuracy}%</span>
-                      </span>
-                    </div>
-                    <div className="stat-item">
-                      <span className="status-badge" style={statusStyle}>
-                        {item.status || 'まだまだ'}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="due-row">
-                    <div className="due-item">
-                      <span className="skill-badge skill-badge-a">英→日</span>
-                      <span className="due-text">
-                        次回 {formatDue(skillA.next_due)}
-                        {skillA.stage !== undefined && intervals[skillA.stage] !== undefined && ` (${intervals[skillA.stage]}日)`}
-                      </span>
-                    </div>
-                    <div className="due-item">
-                      <span className="skill-badge skill-badge-b">日→英</span>
-                      <span className="due-text">
-                        次回 {formatDue(skillB.next_due)}
-                        {skillB.stage !== undefined && intervals[skillB.stage] !== undefined && ` (${intervals[skillB.stage]}日)`}
-                      </span>
-                    </div>
-                    <div className="due-item">
-                      <span className="skill-badge skill-badge-c">Listening</span>
-                      <span className="due-text">
-                        次回 {formatDue(skillC.next_due)}
-                        {skillC.stage !== undefined && intervals[skillC.stage] !== undefined && ` (${intervals[skillC.stage]}日)`}
-                      </span>
-                    </div>
+
+                  <div className="word-status-row">
+                    <span className="status-label-small">ステータス</span>
+                    <span className="status-badge" style={statusStyle}>
+                      {item.status || 'まだまだ'}
+                    </span>
                   </div>
                 </div>
               </div>

@@ -703,3 +703,68 @@ textarea {
   color: #ffffff;
   border: 1px solid #000000;
 }
+
+/* Unified Card Stats */
+.stats-unified-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .stats-unified-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stats-unified-item {
+  background: #f9fafb;
+  border: 1px solid #f3f4f6;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stats-unified-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.stats-text {
+  font-size: 13px;
+  color: #374151;
+  font-weight: 600;
+}
+
+.stats-sub {
+  font-size: 12px;
+  font-weight: 400;
+  color: #6b7280;
+  margin-left: 4px;
+}
+
+.due-row-unified {
+  font-size: 12px;
+  color: #6b7280;
+  border-top: 1px dashed #e5e7eb;
+  padding-top: 8px;
+  margin-top: 4px;
+}
+
+.word-status-row {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-label-small {
+  font-size: 11px;
+  color: #9ca3af;
+}
