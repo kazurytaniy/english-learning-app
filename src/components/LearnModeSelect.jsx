@@ -85,7 +85,7 @@ export default function LearnModeSelect({ repo, onStart, onReset, onBack }) {
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {/* 英→日 */}
             <div style={rowStyle}>
-              <div style={labelStyle}>英→日</div>
+              <div className="skill-badge skill-badge-a">英→日</div>
               <div style={countStyle}>
                 <span style={countNumberStyle}>{counts.A}</span> 件
               </div>
@@ -101,7 +101,7 @@ export default function LearnModeSelect({ repo, onStart, onReset, onBack }) {
 
             {/* 日→英 */}
             <div style={rowStyle}>
-              <div style={labelStyle}>日→英</div>
+              <div className="skill-badge skill-badge-b">日→英</div>
               <div style={countStyle}>
                 <span style={countNumberStyle}>{counts.B}</span> 件
               </div>
@@ -117,7 +117,7 @@ export default function LearnModeSelect({ repo, onStart, onReset, onBack }) {
 
             {/* Listening */}
             <div style={{ ...rowStyle, borderBottom: 'none' }}>
-              <div style={labelStyle}>Listening</div>
+              <div className="skill-badge skill-badge-c">Listening</div>
               <div style={countStyle}>
                 <span style={countNumberStyle}>{counts.C}</span> 件
               </div>

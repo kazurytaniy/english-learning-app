@@ -8,10 +8,11 @@ import WordList from './components/WordList';
 import Settings from './components/Settings';
 import DataManagement from './components/DataManagement';
 import LearnModeSelect from './components/LearnModeSelect';
+import StatsPage from './components/StatsPage';
 import { useRepo } from './repo';
 import { buildTodayQueue, recordAnswer } from './services/scheduleService';
 
-const PAGES = { DASH: 'dash', LEARN: 'learn', LEARN_MODE: 'learnMode', COMPLETE: 'complete', FREE: 'free', WORDS: 'words', SETTINGS: 'settings', DATA: 'data' };
+const PAGES = { DASH: 'dash', LEARN: 'learn', LEARN_MODE: 'learnMode', COMPLETE: 'complete', FREE: 'free', WORDS: 'words', SETTINGS: 'settings', DATA: 'data', STATS: 'stats' };
 
 function App() {
   const repo = useMemo(() => useRepo(), []);
@@ -166,6 +167,7 @@ function App() {
     if (page === PAGES.WORDS) return <WordList repo={repo} ready={ready} onBack={() => setPage(PAGES.DASH)} />;
     if (page === PAGES.SETTINGS) return <Settings repo={repo} onBack={() => setPage(PAGES.DASH)} />;
     if (page === PAGES.DATA) return <DataManagement repo={repo} onBack={() => setPage(PAGES.DASH)} />;
+    if (page === PAGES.STATS) return <StatsPage repo={repo} onBack={() => setPage(PAGES.DASH)} />;
     return null;
   };
 
@@ -212,6 +214,14 @@ function App() {
           <button className={`md-btn text nav-btn ${page === PAGES.WORDS ? 'active' : ''}`} onClick={() => setPage(PAGES.WORDS)}>
             <BookOpen size={18} className="nav-icon" />
             <span className="nav-label">単語</span>
+          </button>
+          <button className={`md-btn text nav-btn ${page === PAGES.STATS ? 'active' : ''}`} onClick={() => setPage(PAGES.STATS)}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="nav-icon">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="12" y1="8" x2="12" y2="16"></line>
+              <line x1="8" y1="12" x2="16" y2="12"></line>
+            </svg>
+            <span className="nav-label">統計</span>
           </button>
           <button className={`md-btn text nav-btn ${page === PAGES.SETTINGS ? 'active' : ''}`} onClick={() => setPage(PAGES.SETTINGS)}>
             <Gear size={18} className="nav-icon" />

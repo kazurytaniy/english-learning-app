@@ -58,6 +58,7 @@ export default function FreeReview({ onBack, repo }) {
   const [sortKey, setSortKey] = useState('weak');
   const [selectedIds, setSelectedIds] = useState([]);
   const [skill, setSkill] = useState('A');
+  const [intervals, setIntervals] = useState([]);
 
   const [isReviewing, setIsReviewing] = useState(false);
   const [queue, setQueue] = useState([]);
@@ -67,14 +68,16 @@ export default function FreeReview({ onBack, repo }) {
 
   useEffect(() => {
     const load = async () => {
-      const [itemsList, tagsList, progressList] = await Promise.all([
+      const [itemsList, tagsList, progressList, settings] = await Promise.all([
         repo.listItems(),
         repo.listTags(),
         repo.listProgress(),
+        repo.getSettings(),
       ]);
       setItems(itemsList);
       setTags(tagsList.map((t) => t.name || t.id));
       setProgressMap(buildProgressMap(progressList));
+      setIntervals(settings?.intervals || [1, 2, 4, 7, 15, 30]);
     };
     load();
   }, [repo]);
@@ -364,7 +367,7 @@ export default function FreeReview({ onBack, repo }) {
           flex-wrap: wrap;
         }
         .word-en {
-          font-size: 20px;
+          font-size: 32px;
           font-weight: 700;
           color: #1f2937;
         }
@@ -424,7 +427,7 @@ export default function FreeReview({ onBack, repo }) {
           align-items: center;
           gap: 10px;
         }
-        .skill-badge {
+        /* .skill-badge {
           display: inline-flex;
           align-items: center;
           justify-content: center;
@@ -439,7 +442,7 @@ export default function FreeReview({ onBack, repo }) {
         .skill-badge.active {
           background: #4f46e5;
           color: #fff;
-        }
+        } */
         .stat-text {
           font-size: 13px;
           color: #6b7280;
@@ -706,14 +709,14 @@ export default function FreeReview({ onBack, repo }) {
                   {/* 1行目: 英→日 と 日→英 */}
                   <div className="stats-row">
                     <div className="stat-item">
-                      <span className={`skill-badge ${skill === 'A' ? 'active' : ''}`}>英→日</span>
+                      <span className={`skill-badge skill-badge-a ${skill === 'A' ? 'active' : ''}`}>英→日</span>
                       <span className="stat-text">
                         {skillA.correct}/{skillA.attempts}
                         <span className="stat-accuracy"> 正解率 {skillA.accuracy}%</span>
                       </span>
                     </div>
                     <div className="stat-item">
-                      <span className={`skill-badge ${skill === 'B' ? 'active' : ''}`}>日→英</span>
+                      <span className={`skill-badge skill-badge-b ${skill === 'B' ? 'active' : ''}`}>日→英</span>
                       <span className="stat-text">
                         {skillB.correct}/{skillB.attempts}
                         <span className="stat-accuracy"> 正解率 {skillB.accuracy}%</span>
@@ -723,7 +726,7 @@ export default function FreeReview({ onBack, repo }) {
                   {/* 2行目: Listening と ステータス */}
                   <div className="stats-row">
                     <div className="stat-item">
-                      <span className={`skill-badge ${skill === 'C' ? 'active' : ''}`}>Listening</span>
+                      <span className={`skill-badge skill-badge-c ${skill === 'C' ? 'active' : ''}`}>Listening</span>
                       <span className="stat-text">
                         {skillC.correct}/{skillC.attempts}
                         <span className="stat-accuracy"> 正解率 {skillC.accuracy}%</span>
@@ -737,16 +740,25 @@ export default function FreeReview({ onBack, repo }) {
                   </div>
                   <div className="due-row">
                     <div className="due-item">
-                      <span className="skill-badge">英→日</span>
-                      <span className="due-text">次回 {formatDue(skillA.next_due)}</span>
+                      <span className="skill-badge skill-badge-a">英→日</span>
+                      <span className="due-text">
+                        次回 {formatDue(skillA.next_due)}
+                        {skillA.stage !== undefined && intervals[skillA.stage] !== undefined && ` (${intervals[skillA.stage]}日)`}
+                      </span>
                     </div>
                     <div className="due-item">
-                      <span className="skill-badge">日→英</span>
-                      <span className="due-text">次回 {formatDue(skillB.next_due)}</span>
+                      <span className="skill-badge skill-badge-b">日→英</span>
+                      <span className="due-text">
+                        次回 {formatDue(skillB.next_due)}
+                        {skillB.stage !== undefined && intervals[skillB.stage] !== undefined && ` (${intervals[skillB.stage]}日)`}
+                      </span>
                     </div>
                     <div className="due-item">
-                      <span className="skill-badge">Listening</span>
-                      <span className="due-text">次回 {formatDue(skillC.next_due)}</span>
+                      <span className="skill-badge skill-badge-c">Listening</span>
+                      <span className="due-text">
+                        次回 {formatDue(skillC.next_due)}
+                        {skillC.stage !== undefined && intervals[skillC.stage] !== undefined && ` (${intervals[skillC.stage]}日)`}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -776,9 +788,9 @@ function buildProgressMap(progressList) {
       map[id] = {
         total: { correct: 0, wrong: 0, attempts: 0, accuracy: 0 },
         skills: {
-          A: { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '' },
-          B: { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '' },
-          C: { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '' },
+          A: { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '', stage: 0 },
+          B: { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '', stage: 0 },
+          C: { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '', stage: 0 },
         }
       };
     }
@@ -791,6 +803,7 @@ function buildProgressMap(progressList) {
       entry.skills[skill].wrong += wrong;
       entry.skills[skill].attempts += correct + wrong;
       entry.skills[skill].next_due = prog.next_due || entry.skills[skill].next_due || '';
+      entry.skills[skill].stage = prog.stage !== undefined ? prog.stage : entry.skills[skill].stage;
     }
     entry.total.correct += correct;
     entry.total.wrong += wrong;

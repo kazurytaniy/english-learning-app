@@ -76,7 +76,9 @@ export default function LearnPage({
     <div className="min-h-screen flex items-center justify-center px-4 word-page">
       <div className="form-card" style={{ maxWidth: 980, width: '100%', textAlign: 'center', margin: '0 auto' }}>
         <div className="muted" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>{current.skill === 'A' ? '英→日' : current.skill === 'B' ? '日→英' : 'Listening'}</span>
+          <span className={`skill-badge ${current.skill === 'A' ? 'skill-badge-a' : current.skill === 'B' ? 'skill-badge-b' : 'skill-badge-c'}`}>
+            {current.skill === 'A' ? '英→日' : current.skill === 'B' ? '日→英' : 'Listening'}
+          </span>
           <span className="muted">{progressCurrent} / {progressTotal}</span>
         </div>
         <div
@@ -124,6 +126,28 @@ export default function LearnPage({
             </button>
           </div>
         )}
+
+        <div style={{ marginTop: 32, textAlign: 'center' }}>
+          <button
+            className="btn"
+            style={{
+              fontSize: 14,
+              color: '#ffffff',
+              background: '#424242',
+              border: '1px solid #000000',
+              fontWeight: 600,
+              padding: '10px 24px',
+              borderRadius: '10px'
+            }}
+            onClick={() => {
+              if (window.confirm('学習を終了して結果を確認しますか？\n（ここまでのデータは保存されます）')) {
+                onFinish();
+              }
+            }}
+          >
+            学習を中断して終了
+          </button>
+        </div>
       </div>
     </div>
   );
