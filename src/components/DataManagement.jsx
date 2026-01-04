@@ -70,7 +70,7 @@ export default function DataManagement({ repo, onBack }) {
         {status && <div className="status" style={{ marginTop: 12 }}>{status}</div>}
 
         <div style={{ marginTop: 12 }}>
-          <button className="btn btn-ghost" onClick={onBack}>戻る</button>
+          <button className="btn-back" onClick={onBack}>戻る</button>
         </div>
       </div>
     </div>

@@ -764,7 +764,30 @@ textarea {
   gap: 8px;
 }
 
+
 .status-label-small {
   font-size: 11px;
   color: #9ca3af;
+}
+
+/* Custom Back Button */
+.btn-back {
+  border: 1px solid #000000;
+  background-color: #DEDEDE;
+  color: #000000;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.btn-back:hover {
+  background-color: #424242;
+  color: #ffffff;
 }

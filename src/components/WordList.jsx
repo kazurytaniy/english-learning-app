@@ -1161,13 +1161,18 @@ export default function WordList({ repo, ready, onBack }) {
                   </div>
                   <div className="word-ja">{item.ja || ''}</div>
                 </div>
-                <div className="action-icons">
-                  <button className="icon-btn icon-btn-edit" onClick={() => startEdit(item)} title="編集">
-                    <EditIcon />
-                  </button>
-                  <button className="icon-btn icon-btn-delete" onClick={() => removeItem(item)} title="削除">
-                    <DeleteIcon />
-                  </button>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                  <div className="action-icons">
+                    <button className="icon-btn icon-btn-edit" onClick={() => startEdit(item)} title="編集">
+                      <EditIcon />
+                    </button>
+                    <button className="icon-btn icon-btn-delete" onClick={() => removeItem(item)} title="削除">
+                      <DeleteIcon />
+                    </button>
+                  </div>
+                  <span className="status-badge" style={{ ...statusStyle, padding: '4px 10px', fontSize: '11px' }}>
+                    {item.status || 'まだまだ'}
+                  </span>
                 </div>
               </div>
 
@@ -1209,7 +1214,7 @@ export default function WordList({ repo, ready, onBack }) {
                     </div>
                     <div className="stats-unified-row due-row-unified">
                       <span>次回: {formatDue(skillA.next_due)}</span>
-                      {skillA.stage !== undefined && intervals[skillA.stage] !== undefined && <span>{intervals[skillA.stage]}日後</span>}
+                      {skillA.stage !== undefined && intervals[skillA.stage] !== undefined && <span>{intervals[skillA.stage]}日</span>}
                     </div>
                   </div>
 
@@ -1224,7 +1229,7 @@ export default function WordList({ repo, ready, onBack }) {
                     </div>
                     <div className="stats-unified-row due-row-unified">
                       <span>次回: {formatDue(skillB.next_due)}</span>
-                      {skillB.stage !== undefined && intervals[skillB.stage] !== undefined && <span>{intervals[skillB.stage]}日後</span>}
+                      {skillB.stage !== undefined && intervals[skillB.stage] !== undefined && <span>{intervals[skillB.stage]}日</span>}
                     </div>
                   </div>
 
@@ -1239,16 +1244,10 @@ export default function WordList({ repo, ready, onBack }) {
                     </div>
                     <div className="stats-unified-row due-row-unified">
                       <span>次回: {formatDue(skillC.next_due)}</span>
-                      {skillC.stage !== undefined && intervals[skillC.stage] !== undefined && <span>{intervals[skillC.stage]}日後</span>}
+                      {skillC.stage !== undefined && intervals[skillC.stage] !== undefined && <span>{intervals[skillC.stage]}日</span>}
                     </div>
                   </div>
 
-                </div>
-                <div className="word-status-row">
-                  <span className="status-label-small">ステータス</span>
-                  <span className="status-badge" style={statusStyle}>
-                    {item.status || 'まだまだ'}
-                  </span>
                 </div>
               </div>
             </div>
@@ -1262,7 +1261,7 @@ export default function WordList({ repo, ready, onBack }) {
       </div>
 
       <div style={{ marginTop: 12 }}>
-        <button className="btn btn-ghost" onClick={onBack}>← 戻る</button>
+        <button className="btn-back" onClick={onBack}>戻る</button>
       </div>
     </div>
   );

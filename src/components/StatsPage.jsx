@@ -204,6 +204,58 @@ export default function StatsPage({ repo, onBack }) {
         });
     }, [activityData]);
 
+    const totalStatusCount = useMemo(() => currentStatusData.reduce((acc, cur) => acc + cur.value, 0), [currentStatusData]);
+
+    const renderBarTooltip = ({ active, payload, label }) => {
+        if (active && payload && payload.length) {
+            const correctData = payload.find(p => p.dataKey === 'correct');
+            const countData = payload.find(p => p.dataKey === 'count');
+            const correct = correctData ? correctData.value : 0;
+            const count = countData ? countData.value : 0;
+            const accuracy = count > 0 ? Math.round((correct / count) * 100) : 0;
+
+            return (
+                <div style={{ backgroundColor: '#fff', padding: '12px', borderRadius: '12px', border: '1px solid #f3f4f6', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                    <p style={{ margin: '0 0 8px', fontWeight: 'bold', color: '#374151', fontSize: '14px' }}>{label}</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ color: '#4caf50', fontSize: '13px', fontWeight: 600 }}>
+                            正解 : {correct}
+                        </div>
+                        <div style={{ color: '#4b5563', fontSize: '13px', fontWeight: 600 }}>
+                            総数 : {count}
+                        </div>
+                        <div style={{ color: '#6b7280', fontSize: '13px', marginTop: '6px', paddingTop: '6px', borderTop: '1px solid #f3f4f6' }}>
+                            正解率 : {accuracy}%
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+        return null;
+    };
+
+    const renderPieTooltip = ({ active, payload }) => {
+        if (active && payload && payload.length) {
+            const data = payload[0];
+            const percent = totalStatusCount > 0 ? Math.round((data.value / totalStatusCount) * 100) : 0;
+            return (
+                <div style={{ backgroundColor: '#fff', padding: '10px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                        <div style={{ width: 8, height: 8, backgroundColor: data.payload.color, borderRadius: '50%' }}></div>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>{data.name}</span>
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#4b5563' }}>
+                        {data.value} 単語
+                        <span style={{ marginLeft: '8px', color: '#6b7280', fontSize: '12px' }}>
+                            ({percent}%)
+                        </span>
+                    </div>
+                </div>
+            );
+        }
+        return null;
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center">
@@ -289,7 +341,7 @@ export default function StatsPage({ repo, onBack }) {
             <div style={{ maxWidth: 980, width: '100%', margin: '0 auto' }}>
                 <div className="stats-header">
                     <h2 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>統計・進捗</h2>
-                    <button className="btn btn-ghost" onClick={onBack}>戻る</button>
+                    <button className="btn-back" onClick={onBack}>戻る</button>
                 </div>
 
                 <div className="stat-grid">
@@ -325,12 +377,10 @@ export default function StatsPage({ repo, onBack }) {
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                                 <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
                                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                                <Tooltip
-                                    contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                />
+                                <Tooltip content={renderBarTooltip} cursor={{ fill: '#f9fafb' }} />
                                 <Legend />
                                 <Bar dataKey="correct" name="正解" stackId="a" fill="#4caf50" radius={[0, 0, 4, 4]} />
-                                <Bar dataKey="count" name="総数 (不正解含む)" stackId="a" fill="#e5e7eb" radius={[4, 4, 0, 0]} />
+                                <Bar dataKey="count" name="総数 " stackId="a" fill="#e5e7eb" radius={[4, 4, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
@@ -358,7 +408,7 @@ export default function StatsPage({ repo, onBack }) {
                                             <Cell key={`cell-${index}`} fill={entry.color} />
                                         ))}
                                     </Pie>
-                                    <Tooltip />
+                                    <Tooltip content={renderPieTooltip} />
                                     <Legend />
                                 </PieChart>
                             </ResponsiveContainer>

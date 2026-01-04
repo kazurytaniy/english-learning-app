@@ -77,7 +77,7 @@ export default function LearnModeSelect({ repo, onStart, onReset, onBack }) {
       <div className="form-card" style={{ maxWidth: 980, width: '100%', margin: '0 auto' }}>
         <div className="row row-between row-center" style={{ marginBottom: 16 }}>
           <h2 className="page-title" style={{ margin: 0 }}>今日の学習</h2>
-          <button type="button" className="btn btn-ghost" onClick={onBack}>戻る</button>
+          <button type="button" className="btn-back" onClick={onBack}>戻る</button>
         </div>
 
         <div className="form-group">

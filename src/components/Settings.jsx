@@ -244,7 +244,7 @@ export default function Settings({ repo, onBack }) {
         <div className="button-row">
           <button className="btn btn-primary" onClick={save}>保存</button>
           <button className="btn btn-outline" onClick={resetToDefault}>デフォルトに戻す</button>
-          <button className="btn btn-ghost" onClick={onBack}>← 戻る</button>
+          <button className="btn-back" onClick={onBack}>戻る</button>
         </div>
       </div>
     </div>

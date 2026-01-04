@@ -182,7 +182,7 @@ export default function FreeReview({ onBack, repo }) {
             </div>
           )}
           <div className="row" style={{ marginTop: 12 }}>
-            <button className="md-btn filled" onClick={stopReview}>一覧へ戻る</button>
+            <button className="btn-back" onClick={stopReview}>戻る</button>
           </div>
         </div>
       </div>
@@ -759,15 +759,21 @@ export default function FreeReview({ onBack, repo }) {
                     checked={selected}
                     onChange={() => toggleSelect(item.id)}
                   />
-                  <div className="word-content">
+                  <div style={{ flex: 1 }}>
                     <div className="word-title-row">
                       <span className="word-en">{item.en}</span>
                       <span className="category-badge">{item.category || '単語'}</span>
                     </div>
                     <div className="word-ja">{getJaText(item)}</div>
                   </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                    <div className="action-icons">
+                    </div>
+                    <span className="status-badge" style={{ ...statusStyle, padding: '4px 10px', fontSize: '11px' }}>
+                      {item.status || 'まだまだ'}
+                    </span>
+                  </div>
                 </div>
-
                 {Array.isArray(item.tags) && item.tags.length > 0 && (
                   <div style={{ marginLeft: 34 }}>
                     {item.tags.map((tag) => (
@@ -789,7 +795,7 @@ export default function FreeReview({ onBack, repo }) {
                       </div>
                       <div className="stats-unified-row due-row-unified">
                         <span>次回: {formatDue(skillA.next_due)}</span>
-                        {skillA.stage !== undefined && intervals[skillA.stage] !== undefined && <span>{intervals[skillA.stage]}日後</span>}
+                        {skillA.stage !== undefined && intervals[skillA.stage] !== undefined && <span>{intervals[skillA.stage]}日</span>}
                       </div>
                     </div>
 
@@ -804,7 +810,7 @@ export default function FreeReview({ onBack, repo }) {
                       </div>
                       <div className="stats-unified-row due-row-unified">
                         <span>次回: {formatDue(skillB.next_due)}</span>
-                        {skillB.stage !== undefined && intervals[skillB.stage] !== undefined && <span>{intervals[skillB.stage]}日後</span>}
+                        {skillB.stage !== undefined && intervals[skillB.stage] !== undefined && <span>{intervals[skillB.stage]}日</span>}
                       </div>
                     </div>
 
@@ -819,17 +825,11 @@ export default function FreeReview({ onBack, repo }) {
                       </div>
                       <div className="stats-unified-row due-row-unified">
                         <span>次回: {formatDue(skillC.next_due)}</span>
-                        {skillC.stage !== undefined && intervals[skillC.stage] !== undefined && <span>{intervals[skillC.stage]}日後</span>}
+                        {skillC.stage !== undefined && intervals[skillC.stage] !== undefined && <span>{intervals[skillC.stage]}日</span>}
                       </div>
                     </div>
                   </div>
 
-                  <div className="word-status-row">
-                    <span className="status-label-small">ステータス</span>
-                    <span className="status-badge" style={statusStyle}>
-                      {item.status || 'まだまだ'}
-                    </span>
-                  </div>
                 </div>
               </div>
             );
@@ -842,8 +842,7 @@ export default function FreeReview({ onBack, repo }) {
         </div>
       </div>
       <div style={{ marginTop: 12 }}>
-        <button className="btn-ghost" onClick={onBack}>← 戻る</button>
-
+        <button className="btn-back" onClick={onBack}>戻る</button>
       </div>
     </div>
   );

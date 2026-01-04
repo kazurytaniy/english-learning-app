@@ -32,7 +32,7 @@ export default function LearnPage({
           <p>学習完了</p>
           <button className="btn btn-primary" onClick={onFinish}>完了画面へ</button>
           <div style={{ marginTop: 8 }}>
-            <button className="btn btn-ghost" onClick={onAbort}>ホームに戻る</button>
+            <button className="btn-back" onClick={onAbort}>戻る</button>
           </div>
         </div>
       </div>

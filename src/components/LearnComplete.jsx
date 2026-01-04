@@ -44,7 +44,7 @@ export default function LearnComplete({ summary, onBack, onRetryWrong }) {
         )}
 
         <div className="row" style={{ marginTop: 12 }}>
-          <button className="btn btn-primary" onClick={onBack}>ホームに戻る</button>
+          <button className="btn-back" onClick={onBack}>戻る</button>
         </div>
       </div>
     </div>
