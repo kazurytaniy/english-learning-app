@@ -75,7 +75,7 @@ export default function Dashboard({ repo, onStartLearn, onNavigate }) {
           margin-bottom: 20px;
         }
         .header-title {
-          font-size: 22px;
+          font-size: 28px;
           font-weight: 700;
           color: #1f2937;
           margin: 0 0 4px 0;
@@ -237,7 +237,7 @@ export default function Dashboard({ repo, onStartLearn, onNavigate }) {
 
       {/* ヘッダー */}
       <div className="header">
-        <h1 className="header-title">📚 English Learning Cards</h1>
+        <h1 className="header-title">📚 English Learning</h1>
         <p className="header-subtitle">エビングハウスの忘却曲線で効率的に学習</p>
       </div>
 
