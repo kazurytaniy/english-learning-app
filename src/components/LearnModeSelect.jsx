@@ -1,32 +1,23 @@
 import React, { useEffect, useState } from 'react';
-import { buildTodayQueue } from '../services/scheduleService';
+import { countTodayQueue } from '../services/scheduleService';
 
-export default function LearnModeSelect({ repo, onStart, onReset, onBack }) {
-  const [resetDone, setResetDone] = useState(false);
+export default function LearnModeSelect({ repo, onStart, onBack }) {
   const [counts, setCounts] = useState({ A: 0, B: 0, C: 0 });
   const [startError, setStartError] = useState('');
 
   const loadCounts = async () => {
     if (!repo) return;
-    const [aQueue, bQueue, cQueue] = await Promise.all([
-      buildTodayQueue(repo, ['A']),
-      buildTodayQueue(repo, ['B']),
-      buildTodayQueue(repo, ['C']),
+    const [aCount, bCount, cCount] = await Promise.all([
+      countTodayQueue(repo, ['A']),
+      countTodayQueue(repo, ['B']),
+      countTodayQueue(repo, ['C']),
     ]);
-    setCounts({ A: aQueue.length, B: bQueue.length, C: cQueue.length });
+    setCounts({ A: aCount, B: bCount, C: cCount });
   };
 
   useEffect(() => {
     loadCounts();
   }, [repo]);
-
-  const handleReset = async () => {
-    if (!onReset) return;
-    await onReset();
-    setResetDone(true);
-    await loadCounts();
-    setTimeout(() => setResetDone(false), 2000);
-  };
 
   const handleStart = async (skills) => {
     if (!onStart) return;
@@ -72,6 +63,8 @@ export default function LearnModeSelect({ repo, onStart, onReset, onBack }) {
     padding: '8px 16px'
   };
 
+  const formatCountLabel = (value) => (value >= 30 ? '30件以上' : `${value}件`);
+
   return (
     <div className="min-h-screen flex items-center justify-center word-page">
       <div className="form-card" style={{ maxWidth: 980, width: '100%', margin: '0 auto' }}>
@@ -87,7 +80,7 @@ export default function LearnModeSelect({ repo, onStart, onReset, onBack }) {
             <div style={rowStyle}>
               <div className="skill-badge skill-badge-a">英→日</div>
               <div style={countStyle}>
-                <span style={countNumberStyle}>{counts.A}</span> 件
+                <span style={countNumberStyle}>{formatCountLabel(counts.A)}</span>
               </div>
               <button
                 type="button"
@@ -103,7 +96,7 @@ export default function LearnModeSelect({ repo, onStart, onReset, onBack }) {
             <div style={rowStyle}>
               <div className="skill-badge skill-badge-b">日→英</div>
               <div style={countStyle}>
-                <span style={countNumberStyle}>{counts.B}</span> 件
+                <span style={countNumberStyle}>{formatCountLabel(counts.B)}</span>
               </div>
               <button
                 type="button"
@@ -119,7 +112,7 @@ export default function LearnModeSelect({ repo, onStart, onReset, onBack }) {
             <div style={{ ...rowStyle, borderBottom: 'none' }}>
               <div className="skill-badge skill-badge-c">Listening</div>
               <div style={countStyle}>
-                <span style={countNumberStyle}>{counts.C}</span> 件
+                <span style={countNumberStyle}>{formatCountLabel(counts.C)}</span>
               </div>
               <button
                 type="button"
@@ -133,16 +126,9 @@ export default function LearnModeSelect({ repo, onStart, onReset, onBack }) {
           </div>
         </div>
 
-        <div className="form-group">
-          <div className="form-label">今日の学習データ</div>
-          <button type="button" className="btn btn-outline" onClick={handleReset}>学習をリセット</button>
-          {resetDone && (
-            <div className="status" style={{ marginTop: 8 }}>リセットしました</div>
-          )}
-          {startError && (
-            <div className="status" style={{ marginTop: 8, color: '#dc2626' }}>{startError}</div>
-          )}
-        </div>
+        {startError && (
+          <div className="status" style={{ marginTop: 8, color: '#dc2626' }}>{startError}</div>
+        )}
       </div>
     </div>
   );

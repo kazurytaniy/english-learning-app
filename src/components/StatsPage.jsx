@@ -15,6 +15,7 @@ import {
     Line
 } from 'recharts';
 import { STATUS_LEVELS } from '../utils/constants';
+import { formatDateJst } from '../utils/date';
 
 // ステータスカラー定義（既存の定義と合わせる）
 const STATUS_COLORS = {
@@ -37,7 +38,7 @@ const formatDate = (date, mode) => {
         return `${startOfWeek.getMonth() + 1}/${startOfWeek.getDate()}週`;
     }
     if (mode === 'month') return `${d.getFullYear()}/${d.getMonth() + 1}`;
-    return d.toISOString().slice(0, 10);
+    return formatDateJst(d);
 };
 
 const aggregateData = (attempts, mode) => {
@@ -58,16 +59,16 @@ const aggregateData = (attempts, mode) => {
         let key;
 
         if (mode === 'day') {
-            key = d.toISOString().slice(0, 10);
+            key = formatDateJst(d);
         } else if (mode === 'week') {
             // 週の開始日（日曜日）をキーにする
             const startOfWeek = new Date(d);
             startOfWeek.setDate(d.getDate() - d.getDay());
-            key = startOfWeek.toISOString().slice(0, 10);
+            key = formatDateJst(startOfWeek);
         } else if (mode === 'month') {
             // 月の1日をキーにする
             const startOfMonth = new Date(d.getFullYear(), d.getMonth(), 1);
-            key = startOfMonth.toISOString().slice(0, 10);
+            key = formatDateJst(startOfMonth);
         }
 
         if (!groups[key]) {

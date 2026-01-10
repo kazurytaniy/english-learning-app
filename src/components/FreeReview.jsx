@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Check, X, Mic } from 'lucide-react';
+import { formatDateJst } from '../utils/date';
 
 const SKILLS = [
   { id: 'A', label: '英→日' },
@@ -39,7 +40,7 @@ const formatDue = (s) => {
   if (!s) return '未設定';
   if (s.length === 10) return s;
   try {
-    return new Date(s).toISOString().slice(0, 10);
+    return formatDateJst(s);
   } catch {
     return s;
   }

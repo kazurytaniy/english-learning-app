@@ -82,12 +82,6 @@ function App() {
     setPage(PAGES.LEARN);
   };
 
-  const resetTodayLearning = async () => {
-    await repo.clearSession('schedule');
-    setQueue([]);
-    setAnswers([]);
-    setTotalCount(0);
-  };
 
   const handleAnswer = async (item, skill, isCorrect, elapsedMs) => {
     await recordAnswer(repo, item, skill, isCorrect, elapsedMs);
@@ -125,7 +119,6 @@ function App() {
         <LearnModeSelect
           repo={repo}
           onStart={(skills) => startLearn(skills, { forceNew: true })}
-          onReset={resetTodayLearning}
           onBack={() => setPage(PAGES.DASH)}
         />
       );

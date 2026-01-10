@@ -1,6 +1,7 @@
 import { nextStage } from './spacingService';
+import { formatDateJst } from '../utils/date';
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
+const todayStr = () => formatDateJst(new Date());
 
 const defaultProgress = (item, skill) => ({
   id: `${item.id}-${skill}`,
@@ -14,7 +15,8 @@ const defaultProgress = (item, skill) => ({
   mastered: false,
 });
 
-export async function buildTodayQueue(repo, skills = ['A', 'B', 'C']) {
+export async function buildTodayQueue(repo, skills = ['A', 'B', 'C'], options = {}) {
+  const { limit = 30 } = options;
   const items = await repo.listItems();
   const settings = await repo.getSettings();
   const intervals = settings?.intervals || [1, 2, 4, 7, 15, 30];
@@ -37,7 +39,29 @@ export async function buildTodayQueue(repo, skills = ['A', 'B', 'C']) {
   }
   // 出題件数が多すぎる場合は上限を設定（例: 30件）
   queue.sort((a, b) => (b.item.created_at || 0) - (a.item.created_at || 0));
-  return queue.slice(0, 30);
+  return limit === null ? queue : queue.slice(0, limit);
+}
+
+export async function countTodayQueue(repo, skills = ['A', 'B', 'C']) {
+  const items = await repo.listItems();
+  let total = 0;
+  for (const item of items) {
+    for (const skill of skills) {
+      let prog = await repo.getProgress(item.id, skill);
+      if (!prog) {
+        prog = defaultProgress(item, skill);
+        await repo.saveProgress(prog);
+      } else if (!prog.next_due) {
+        prog.next_due = todayStr();
+        await repo.saveProgress(prog);
+      }
+      const due = prog.next_due || todayStr();
+      if (due <= todayStr()) {
+        total += 1;
+      }
+    }
+  }
+  return total;
 }
 
 export async function recordAnswer(repo, item, skill, isCorrect, elapsedMs = 0) {
@@ -50,7 +74,7 @@ export async function recordAnswer(repo, item, skill, isCorrect, elapsedMs = 0) 
   next.setDate(next.getDate() + days);
 
   current.stage = stage;
-  current.next_due = next.toISOString().slice(0, 10);
+  current.next_due = formatDateJst(next);
   current.correct_count += isCorrect ? 1 : 0;
   current.wrong_count += isCorrect ? 0 : 1;
   current.accuracy = current.correct_count / (current.correct_count + current.wrong_count || 1);

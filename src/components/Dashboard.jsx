@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { computeStats } from '../services/statsService';
 
 // アイコンコンポーネント
@@ -50,10 +50,15 @@ export default function Dashboard({ repo, onStartLearn, onNavigate }) {
     load();
   }, [repo]);
 
-  const todayQueue = queueCount(stats);
+  const todayQueue = stats?.todayQueue || 0;
   const totalItems = stats?.totalItems || 0;
   const todayLearned = stats?.todayLearned || 0;
+  const todayCorrect = stats?.todayCorrect || 0;
   const todayAccuracy = stats?.todayAccuracy || 0;
+  const todayTimeMs = stats?.todayTimeMs || 0;
+  const todayLabel = formatJstLong(new Date());
+  const todayQueueLabel = `${todayQueue}`;
+  const todayTimeLabel = formatDuration(todayTimeMs);
 
   return (
     <div className="dashboard-container">
@@ -63,7 +68,7 @@ export default function Dashboard({ repo, onStartLearn, onNavigate }) {
           padding: 16px;
           padding-bottom: 80px;
         }
-        
+
         /* ヘッダー */
         .header {
           text-align: center;
@@ -80,7 +85,7 @@ export default function Dashboard({ repo, onStartLearn, onNavigate }) {
           color: #9ca3af;
           margin: 0;
         }
-        
+
         /* 今日の学習カード */
         .hero-card {
           background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
@@ -133,7 +138,7 @@ export default function Dashboard({ repo, onStartLearn, onNavigate }) {
           background: rgba(255, 255, 255, 0.3);
           transform: scale(1.05);
         }
-        
+
         /* メニューカード */
         .menu-card {
           background: #fff;
@@ -192,7 +197,7 @@ export default function Dashboard({ repo, onStartLearn, onNavigate }) {
           font-size: 13px;
           color: #9ca3af;
         }
-        
+
         /* 統計カード */
         .stats-card {
           background: #fff;
@@ -209,7 +214,7 @@ export default function Dashboard({ repo, onStartLearn, onNavigate }) {
         }
         .stats-grid {
           display: grid;
-          grid-template-columns: repeat(3, 1fr);
+          grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
           gap: 12px;
         }
         .stat-item {
@@ -233,17 +238,17 @@ export default function Dashboard({ repo, onStartLearn, onNavigate }) {
       {/* ヘッダー */}
       <div className="header">
         <h1 className="header-title">📚 English Learning Cards</h1>
-        <p className="header-subtitle">エビングハウスの忘却曲線で効率学習</p>
+        <p className="header-subtitle">エビングハウスの忘却曲線で効率的に学習</p>
       </div>
 
       {/* 今日の学習カード */}
       <div className="hero-card">
         <div className="hero-content">
-          <div className="hero-label">今日の学習</div>
+          <div className="hero-label">今日の学習 {todayLabel}</div>
           <div className="hero-count">
-            {todayQueue}<span>件</span>
+            {todayQueueLabel}<span>件</span>
           </div>
-          <div className="hero-subtitle">さあ、始めましょう！</div>
+          <div className="hero-subtitle">さあ、始めましょう</div>
         </div>
         <button className="hero-play-btn" onClick={onStartLearn} title="学習を開始">
           <PlayIcon />
@@ -271,17 +276,15 @@ export default function Dashboard({ repo, onStartLearn, onNavigate }) {
         </div>
       </button>
 
-
       <button className="menu-card" onClick={() => onNavigate('free')}>
         <div className="menu-icon menu-icon-orange">
           <RepeatIcon />
         </div>
         <div className="menu-content">
-          <div className="menu-title">復習する!</div>
+          <div className="menu-title">復習する</div>
           <div className="menu-description">好きなカードを選んで復習</div>
         </div>
       </button>
-
 
       <button className="menu-card" onClick={() => onNavigate('stats')}>
         <div className="menu-icon menu-icon-green">
@@ -293,19 +296,25 @@ export default function Dashboard({ repo, onStartLearn, onNavigate }) {
         </div>
       </button>
 
-
-
-      {/* 今日の学習 統計 */}
+      {/* 今日の実績 */}
       <div className="stats-card">
-        <div className="stats-title">今日の学習</div>
+        <div className="stats-title">今日の実績</div>
         <div className="stats-grid">
           <div className="stat-item">
             <div className="stat-value">{todayLearned}</div>
             <div className="stat-label">学習数</div>
           </div>
           <div className="stat-item">
+            <div className="stat-value">{todayCorrect}</div>
+            <div className="stat-label">正解数</div>
+          </div>
+          <div className="stat-item">
             <div className="stat-value stat-value-accent">{todayAccuracy}%</div>
-            <div className="stat-label">正答率</div>
+            <div className="stat-label">正解率</div>
+          </div>
+          <div className="stat-item">
+            <div className="stat-value">{todayTimeLabel}</div>
+            <div className="stat-label">学習時間</div>
           </div>
           <div className="stat-item">
             <div className="stat-value">{totalItems}</div>
@@ -317,6 +326,28 @@ export default function Dashboard({ repo, onStartLearn, onNavigate }) {
   );
 }
 
-function queueCount(stats) {
-  return stats?.todayQueue || 0;
+function formatJstLong(date) {
+  const d = date instanceof Date ? date : new Date(date);
+  const parts = new Intl.DateTimeFormat('ja-JP', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  }).formatToParts(d);
+  const year = parts.find((p) => p.type === 'year')?.value || '';
+  const month = parts.find((p) => p.type === 'month')?.value || '';
+  const day = parts.find((p) => p.type === 'day')?.value || '';
+  return `${year}年${month}月${day}日`;
+}
+
+function formatDuration(ms) {
+  if (!ms || ms <= 0) return '0秒';
+  const totalSeconds = Math.round(ms / 1000);
+  if (totalSeconds < 60) return `${totalSeconds}秒`;
+  const totalMinutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (totalMinutes < 60) return `${totalMinutes}分${seconds ? `${seconds}秒` : ''}`;
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${hours}時間${minutes}分`;
 }

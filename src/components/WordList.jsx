@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { STATUS_LEVELS } from '../utils/constants';
+import { formatDateJst } from '../utils/date';
 
 const uniqueTags = (tags) => Array.from(new Set(tags.filter(Boolean)));
 
@@ -19,7 +20,7 @@ const formatDue = (s) => {
   if (!s) return '未設定';
   if (s.length === 10) return s;
   try {
-    return new Date(s).toISOString().slice(0, 10);
+    return formatDateJst(s);
   } catch {
     return s;
   }
@@ -1358,7 +1359,7 @@ function buildStats(items, progressList) {
 }
 
 async function ensureProgressForItem(repo, itemId) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = formatDateJst(new Date());
   for (const skill of ['A', 'B', 'C']) {
     const existing = await repo.getProgress(itemId, skill);
     if (!existing) {

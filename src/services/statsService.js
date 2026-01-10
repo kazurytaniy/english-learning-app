@@ -1,6 +1,7 @@
-import { buildTodayQueue } from './scheduleService';
+import { countTodayQueue } from './scheduleService';
+import { formatDateJst } from '../utils/date';
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
+const todayStr = () => formatDateJst(new Date());
 
 export async function computeStats(repo) {
   const items = await repo.listItems();
@@ -25,19 +26,20 @@ export async function computeStats(repo) {
   const today = todayStr();
   const todayAttempts = attempts.filter((a) => {
     if (!a?.ts) return false;
-    return new Date(a.ts).toISOString().slice(0, 10) === today;
+    return formatDateJst(a.ts) === today;
   });
   const todayLearned = todayAttempts.length;
   const todayCorrect = todayAttempts.filter((a) => a.result).length;
+  const todayTimeMs = todayAttempts.reduce((sum, a) => sum + (a.elapsedMs || 0), 0);
   const todayAccuracy = todayLearned ? Math.round((todayCorrect / todayLearned) * 100) : 0;
 
   // スキルごとの本日キュー件数を取得し、合算して「今日の学習」件数とする
   const [todayA, todayB, todayC] = await Promise.all([
-    buildTodayQueue(repo, ['A']),
-    buildTodayQueue(repo, ['B']),
-    buildTodayQueue(repo, ['C']),
+    countTodayQueue(repo, ['A']),
+    countTodayQueue(repo, ['B']),
+    countTodayQueue(repo, ['C']),
   ]);
-  const todayQueue = todayA.length + todayB.length + todayC.length;
+  const todayQueue = todayA + todayB + todayC;
 
   const stats = {
     totalItems: items.length,
@@ -49,7 +51,9 @@ export async function computeStats(repo) {
     totalCorrect,
     todayQueue,
     todayLearned,
+    todayCorrect,
     todayAccuracy,
+    todayTimeMs,
   };
   return stats;
 }

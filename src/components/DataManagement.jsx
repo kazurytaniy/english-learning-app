@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { formatDateJst } from '../utils/date';
 
 export default function DataManagement({ repo, onBack }) {
   const fileInputRef = useRef(null);
@@ -11,7 +12,7 @@ export default function DataManagement({ repo, onBack }) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `ela-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `ela-backup-${formatDateJst(new Date())}.json`;
       a.click();
       URL.revokeObjectURL(url);
       setStatus('エクスポートが完了しました。');
