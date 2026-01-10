@@ -111,8 +111,9 @@ function App() {
   const finishLearn = () => {
     const correct = answers.filter((a) => a.isCorrect).length;
     const wrong = answers.filter((a) => !a.isCorrect).length;
-    const wrongItems = answers.filter((a) => !a.isCorrect).map((a) => a.item);
-    setCompleteSummary({ correct, wrong, wrongItems });
+    const wrongAnswers = answers.filter((a) => !a.isCorrect).map((a) => ({ item: a.item, skill: a.skill }));
+    const wrongItems = wrongAnswers.map((a) => a.item);
+    setCompleteSummary({ correct, wrong, wrongItems, wrongAnswers });
     repo.clearSession('schedule');
     setPage(PAGES.COMPLETE);
   };
@@ -150,8 +151,10 @@ function App() {
           summary={completeSummary}
           onBack={() => setPage(PAGES.DASH)}
           onRetryWrong={() => {
-            const wrong = completeSummary?.wrongItems || [];
-            const wrongQueue = wrong.map((w) => ({ item: w, skill: 'A' }));
+            const wrongAnswers = completeSummary?.wrongAnswers || [];
+            const wrongQueue = wrongAnswers.length > 0
+              ? wrongAnswers.map((w) => ({ item: w.item, skill: w.skill }))
+              : (completeSummary?.wrongItems || []).map((w) => ({ item: w, skill: 'A' }));
             setQueue(wrongQueue);
             setAnswers([]);
             const sid = Date.now().toString();

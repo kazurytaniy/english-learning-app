@@ -277,7 +277,7 @@ export default function Dashboard({ repo, onStartLearn, onNavigate }) {
           <RepeatIcon />
         </div>
         <div className="menu-content">
-          <div className="menu-title">復習する</div>
+          <div className="menu-title">復習する!</div>
           <div className="menu-description">好きなカードを選んで復習</div>
         </div>
       </button>

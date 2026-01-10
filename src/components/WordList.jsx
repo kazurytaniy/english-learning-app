@@ -93,6 +93,7 @@ export default function WordList({ repo, ready, onBack }) {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterTag, setFilterTag] = useState('');
   const [maxAccuracy, setMaxAccuracy] = useState('');
+  const [filterText, setFilterText] = useState('');
   const [searchTrigger, setSearchTrigger] = useState(0);
 
   const load = async () => {
@@ -230,6 +231,7 @@ export default function WordList({ repo, ready, onBack }) {
   };
 
   const filteredItems = useMemo(() => {
+    const term = filterText.trim().toLowerCase();
     const max = maxAccuracy === '' ? 100 : Number(maxAccuracy);
     return items.filter((item) => {
       if (filterCategory && item.category !== filterCategory) return false;
@@ -237,9 +239,33 @@ export default function WordList({ repo, ready, onBack }) {
       if (filterTag && !(item.tags || []).includes(filterTag)) return false;
       const stat = statsByItem[item.id];
       const acc = stat?.total?.accuracy ?? 0;
-      return acc <= max;
+      if (acc > max) return false;
+      if (!term) return true;
+      const haystacks = [
+        item.en,
+        item.ja,
+        ...(Array.isArray(item.jaList) ? item.jaList : []),
+        item.example,
+        item.note,
+        ...(Array.isArray(item.tags) ? item.tags : []),
+      ];
+      return haystacks.some((text) => (text || '').toString().toLowerCase().includes(term));
     });
-  }, [items, filterCategory, filterStatus, filterTag, maxAccuracy, statsByItem, searchTrigger]);
+  }, [items, filterCategory, filterStatus, filterTag, maxAccuracy, statsByItem, filterText, searchTrigger]);
+
+  const searchMatchSummary = useMemo(() => {
+    const term = filterText.trim().toLowerCase();
+    if (!term) return null;
+    let exact = 0;
+    let contains = 0;
+    for (const item of items) {
+      const enText = (item.en || '').toString().toLowerCase();
+      if (!enText) continue;
+      if (enText === term) exact += 1;
+      if (enText.includes(term)) contains += 1;
+    }
+    return { term: filterText.trim(), exact, contains };
+  }, [items, filterText]);
 
   const summary = useMemo(() => {
     const statusCounts = STATUS_LEVELS.reduce((acc, statusLabel) => ({ ...acc, [statusLabel]: 0 }), {});
@@ -1078,12 +1104,26 @@ export default function WordList({ repo, ready, onBack }) {
               setFilterStatus('');
               setFilterTag('');
               setMaxAccuracy('20');
+              setFilterText('');
             }}
           >
             リセット
           </button>
         </div>
         <div className="filter-grid">
+          <div className="filter-group">
+            <label className="filter-label">文字検索</label>
+            <input
+              className="filter-input"
+              type="text"
+              placeholder="英語/日本語/例文/メモ/タグ"
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') setSearchTrigger((prev) => prev + 1);
+              }}
+            />
+          </div>
           <div className="filter-group">
             <label className="filter-label">カテゴリ</label>
             <select className="filter-select" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
@@ -1141,6 +1181,13 @@ export default function WordList({ repo, ready, onBack }) {
       </div>
 
       <div style={{ maxWidth: 980, width: '100%', display: 'flex', flexDirection: 'column', gap: 16, margin: '0 auto' }}>
+        {searchMatchSummary && (
+          <div className="word-card" style={{ background: '#f8fafc', border: '1px solid #e5e7eb' }}>
+            <div style={{ fontSize: 13, color: '#4b5563' }}>
+              検索語「{searchMatchSummary.term}」: 英語完全一致 {searchMatchSummary.exact}件 / 英語に含む {searchMatchSummary.contains}件
+            </div>
+          </div>
+        )}
         {filteredItems.map((item) => {
           const stat = statsByItem[item.id] || {
             total: { correct: 0, wrong: 0, attempts: 0, accuracy: 0 },
