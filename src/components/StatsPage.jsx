@@ -72,6 +72,7 @@ const buildWeekData = (dayMap, weekOffset) => {
       label: `${d.getMonth() + 1}/${d.getDate()}`,
       count: entry.count,
       correct: entry.correct,
+      incorrect: entry.count - entry.correct,
       time: entry.time,
     });
   }
@@ -95,6 +96,7 @@ const buildMonthData = (dayMap, monthOffset) => {
       label: `${d.getMonth() + 1}/${d.getDate()}`,
       count: entry.count,
       correct: entry.correct,
+      incorrect: entry.count - entry.correct,
       time: entry.time,
     });
   }
@@ -114,6 +116,7 @@ const buildYearData = (monthMap, yearOffset) => {
       label: `${d.getFullYear()}/${d.getMonth() + 1}`,
       count: entry.count,
       correct: entry.correct,
+      incorrect: entry.count - entry.correct,
       time: entry.time,
     });
   }
@@ -238,6 +241,34 @@ export default function StatsPage({ repo, onBack }) {
       };
     }
     const days = mode === 'week' ? 7 : 31;
+
+    // 7日平均の場合は「当日を含む7日間」の集計にする（スライディングウィンドウ）
+    if (mode === 'week') {
+      const today = toJstMidnight(new Date());
+      const currentEnd = new Date(today);
+      currentEnd.setDate(today.getDate() - (weekOffset * 7));
+
+      const currentStart = new Date(currentEnd);
+      currentStart.setDate(currentEnd.getDate() - 6);
+
+      const previousEnd = new Date(currentStart);
+      previousEnd.setDate(currentStart.getDate() - 1);
+
+      const previousStart = new Date(previousEnd);
+      previousStart.setDate(previousEnd.getDate() - 6);
+
+      const current = sumDayRange(dayMap, currentStart, 7);
+      const previous = sumDayRange(dayMap, previousStart, 7);
+
+      return {
+        periodLabel: '7日',
+        avgCount: Math.round(current.totalCount / 7),
+        totalTime: current.totalTime,
+        countTrend: trendLabel(current.totalCount, previous.totalCount),
+        timeTrend: trendLabel(current.totalTime, previous.totalTime),
+      };
+    }
+
     const currentStart = new Date(activityPayload.start);
     const previousStart = new Date(currentStart);
     previousStart.setDate(currentStart.getDate() - days);
@@ -284,9 +315,8 @@ export default function StatsPage({ repo, onBack }) {
   const renderBarTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       const correctData = payload.find((p) => p.dataKey === 'correct');
-      const countData = payload.find((p) => p.dataKey === 'count');
       const correct = correctData ? correctData.value : 0;
-      const count = countData ? countData.value : 0;
+      const count = payload[0].payload.count;
       const accuracy = count > 0 ? Math.round((correct / count) * 100) : 0;
 
       return (
@@ -355,9 +385,14 @@ export default function StatsPage({ repo, onBack }) {
     if (touchStartX === null) return;
     const endX = e.changedTouches[0]?.clientX ?? touchStartX;
     const diff = endX - touchStartX;
-    if (Math.abs(diff) > 40) {
-      if (diff < 0) handlePrev();
-      if (diff > 0) handleNext();
+    if (Math.abs(diff) > 50) { // しきい値を少し上げ 50px に
+      if (diff < 0) {
+        // 指を左へ動かす -> 未来(次)を表示
+        handleNext();
+      } else {
+        // 指を右へ動かす -> 過去(前)を表示
+        handlePrev();
+      }
     }
     setTouchStartX(null);
   };
@@ -515,7 +550,7 @@ export default function StatsPage({ repo, onBack }) {
           </div>
         </div>
 
-        <div className="stats-card">
+        <div className="stats-card" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
           <div className="chart-title">
             <span>学習量の推移</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -551,7 +586,7 @@ export default function StatsPage({ repo, onBack }) {
             </div>
           </div>
 
-          <div style={{ height: 300, width: '100%' }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+          <div style={{ height: 300, width: '100%' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={activityData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
@@ -560,7 +595,7 @@ export default function StatsPage({ repo, onBack }) {
                 <Tooltip content={renderBarTooltip} cursor={{ fill: '#f9fafb' }} />
                 <Legend />
                 <Bar dataKey="correct" name="正解" stackId="a" fill="#4caf50" radius={[0, 0, 4, 4]} />
-                <Bar dataKey="count" name="総数" stackId="a" fill="#e5e7eb" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="incorrect" name="未正解" stackId="a" fill="#e5e7eb" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -569,45 +604,43 @@ export default function StatsPage({ repo, onBack }) {
           </div>
         </div>
 
-        <div className="row">
-          <div className="stats-card" style={{ flex: 1 }}>
-            <div className="chart-title">現在のステータス</div>
-            <div style={{ height: 300, width: '100%' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={currentStatusData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {currentStatusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip content={renderPieTooltip} />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+        <div className="stats-card">
+          <div className="chart-title">累積学習回数</div>
+          <div style={{ height: 300, width: '100%' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={cumulativeData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
+                <Tooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                <Line type="monotone" dataKey="cumulative" name="累積回数" stroke="#4f46e5" strokeWidth={3} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
+        </div>
 
-          <div className="stats-card" style={{ flex: 1 }}>
-            <div className="chart-title">累積学習回数</div>
-            <div style={{ height: 300, width: '100%' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={cumulativeData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                  <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                  <Tooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
-                  <Line type="monotone" dataKey="cumulative" name="累積回数" stroke="#4f46e5" strokeWidth={3} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+        <div className="stats-card">
+          <div className="chart-title">現在のステータス</div>
+          <div style={{ height: 300, width: '100%' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={currentStatusData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {currentStatusData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip content={renderPieTooltip} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>

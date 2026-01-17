@@ -4,9 +4,32 @@ import { Copy, Check } from 'lucide-react';
 export default function LearnComplete({ summary, onBack, onRetryWrong }) {
   const [copied, setCopied] = useState(false);
   const textSimple = useMemo(() => {
-    const base = summary?.wrongItems?.map((w) => `${w.en} / ${w.ja || ''}`).join('\n') || '';
-    const advice = 'これらの英文を勉強する為のアドバイスを一つずつ教えて下さい。もし量が多い場合は複数に分けて一つ一つ丁寧にアドレスしてください。';
-    return base ? `${base}\n${advice}` : advice;
+    if (!summary?.wrongAnswers || summary.wrongAnswers.length === 0) {
+      return '';
+    }
+
+    const groups = {
+      A: { label: '英→日', items: [], advice: 'これらの英文は英語を日本語に訳す問題集で不正解であった英文です。勉強する為のアドバイスを一つずつ教えて下さい。もし量が多い場合は複数に分けて一つ一つ丁寧にアドレスしてください。' },
+      B: { label: '日→英', items: [], advice: 'これらの英文は日本語を英語に訳す問題集で不正解であった英文です。正しく英文を作れるようになるための勉強のアドバイスを一つずつ教えて下さい。もし量が多い場合は複数に分けて一つ一つ丁寧にアドレスしてください。' },
+      C: { label: 'Listening', items: [], advice: 'これらの英文は音声を聞き取るリスニング問題で不正解であった英文です。聞き取れるようになるための勉強のアドバイスや聞き取りのポイントを一つずつ教えて下さい。もし量が多い場合は複数に分けて一つ一つ丁寧にアドレスしてください。' },
+    };
+
+    summary.wrongAnswers.forEach((wa) => {
+      const skill = wa.skill || 'A';
+      if (groups[skill]) {
+        groups[skill].items.push(`${wa.item.en} / ${wa.item.ja || ''}`);
+      }
+    });
+
+    const sections = [];
+    ['A', 'B', 'C'].forEach((s) => {
+      const g = groups[s];
+      if (g.items.length > 0) {
+        sections.push(`【${g.label}】\n${g.items.join('\n')}\n\n${g.advice}`);
+      }
+    });
+
+    return sections.join('\n\n' + '='.repeat(20) + '\n\n');
   }, [summary]);
 
   if (!summary) return null;
