@@ -13,7 +13,7 @@ const STATUS_COLORS = {
   '読める': { bg: '#2196f3', text: '#fff' },
   '話せる': { bg: '#4caf50', text: '#fff' },
   '聞ける': { bg: '#ffc107', text: '#333' },
-  'マスター': { bg: 'linear-gradient(135deg, #d4a000 0%, #ffd700 50%, #d4a000 100%)', text: '#333' },
+  'マスター': { bg: 'linear-gradient(135deg, #ea580c 0%, #f59e0b 50%, #ea580c 100%)', text: '#fff' },
 };
 
 const formatDue = (s) => {

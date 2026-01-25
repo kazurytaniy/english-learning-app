@@ -23,7 +23,7 @@ const STATUS_COLORS = {
   '読める': '#2196f3',
   '話せる': '#4caf50',
   '聞ける': '#ffc107',
-  'マスター': '#ffd700',
+  'マスター': '#f59e0b',
 };
 
 const toJstMidnight = (date) => {
@@ -495,6 +495,32 @@ export default function StatsPage({ repo, onBack }) {
     );
   }
 
+  const renderSectionHeader = (title) => (
+    <div className="chart-title">
+      <span>{title}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        <div className="range-nav">
+          <button className="range-btn" type="button" onClick={handlePrev}>前</button>
+          <span style={{ fontSize: 12, color: '#6b7280', fontWeight: 600 }}>{activityRangeLabel}</span>
+          <button className="range-btn" type="button" onClick={handleNext} disabled={!canNext}>次</button>
+        </div>
+        <div className="filter-tabs">
+          <div className={`filter-tab ${mode === 'week' ? 'active' : ''}`} onClick={() => { setMode('week'); setWeekOffset(0); }}>
+            週
+          </div>
+          <div className={`filter-tab ${mode === 'month' ? 'active' : ''}`} onClick={() => { setMode('month'); setMonthOffset(0); }}>
+            月
+          </div>
+          <div className={`filter-tab ${mode === 'year' ? 'active' : ''}`} onClick={() => { setMode('year'); setYearOffset(0); }}>
+            年
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const touchProps = { onTouchStart: handleTouchStart, onTouchEnd: handleTouchEnd };
+
   return (
     <div className="min-h-screen flex flex-col items-center gap-4 px-4 py-6 word-page">
       <style>{`
@@ -640,28 +666,8 @@ export default function StatsPage({ repo, onBack }) {
           </div>
         </div>
 
-        <div className="stats-card" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
-          <div className="chart-title">
-            <span>学習量の推移</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-              <div className="range-nav">
-                <button className="range-btn" type="button" onClick={handlePrev}>前</button>
-                <span style={{ fontSize: 12, color: '#6b7280', fontWeight: 600 }}>{activityRangeLabel}</span>
-                <button className="range-btn" type="button" onClick={handleNext} disabled={!canNext}>次</button>
-              </div>
-              <div className="filter-tabs">
-                <div className={`filter-tab ${mode === 'week' ? 'active' : ''}`} onClick={() => { setMode('week'); setWeekOffset(0); }}>
-                  週
-                </div>
-                <div className={`filter-tab ${mode === 'month' ? 'active' : ''}`} onClick={() => { setMode('month'); setMonthOffset(0); }}>
-                  月
-                </div>
-                <div className={`filter-tab ${mode === 'year' ? 'active' : ''}`} onClick={() => { setMode('year'); setYearOffset(0); }}>
-                  年
-                </div>
-              </div>
-            </div>
-          </div>
+        <div className="stats-card" {...touchProps}>
+          {renderSectionHeader('学習量の推移')}
 
           <div className="highlight-grid">
             <div className="highlight-item" style={{ gridColumn: 'span 3' }}>
@@ -689,8 +695,8 @@ export default function StatsPage({ repo, onBack }) {
           </div>
         </div>
 
-        <div className="stats-card">
-          <div className="chart-title">学習頻度の推移</div>
+        <div className="stats-card" {...touchProps}>
+          {renderSectionHeader('学習頻度の推移')}
 
           <div className="highlight-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
             <div className="highlight-item">
@@ -726,8 +732,8 @@ export default function StatsPage({ repo, onBack }) {
           </div>
         </div>
 
-        <div className="stats-card">
-          <div className="chart-title">正解率の推移</div>
+        <div className="stats-card" {...touchProps}>
+          {renderSectionHeader('正解率の推移')}
           <div style={{ height: 250, width: '100%' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={activityData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -753,9 +759,9 @@ export default function StatsPage({ repo, onBack }) {
           </div>
         </div>
 
-        <div className="stats-card">
-          <div className="chart-title">
-            <span>単語登録数とステータスの推移</span>
+        <div className="stats-card" {...touchProps}>
+          {renderSectionHeader('単語登録数とステータスの推移')}
+          <div style={{ marginTop: -8, marginBottom: 16 }}>
             <div className="muted" style={{ fontSize: 12, fontWeight: 'normal' }}>
               累積の単語数と内訳を表示しています
             </div>
