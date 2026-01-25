@@ -19,9 +19,9 @@ import { formatDateJst } from '../utils/date';
 
 const STATUS_COLORS = {
   'まだまだ': '#9e9e9e',
-  '聞ける': '#ffc107',
+  '読める': '#2196f3',
   '話せる': '#4caf50',
-  '書ける': '#2196f3',
+  '聞ける': '#ffc107',
   'マスター': '#ffd700',
 };
 
@@ -74,6 +74,7 @@ const buildWeekData = (dayMap, weekOffset) => {
       correct: entry.correct,
       incorrect: entry.count - entry.correct,
       time: entry.time,
+      accuracy: entry.count > 0 ? Math.round((entry.correct / entry.count) * 100) : 0,
     });
   }
   return { data, start, end: new Date(start.getTime() + 6 * 86400000) };
@@ -98,6 +99,7 @@ const buildMonthData = (dayMap, monthOffset) => {
       correct: entry.correct,
       incorrect: entry.count - entry.correct,
       time: entry.time,
+      accuracy: entry.count > 0 ? Math.round((entry.correct / entry.count) * 100) : 0,
     });
   }
   return { data, start, end };
@@ -118,6 +120,7 @@ const buildYearData = (monthMap, yearOffset) => {
       correct: entry.correct,
       incorrect: entry.count - entry.correct,
       time: entry.time,
+      accuracy: entry.count > 0 ? Math.round((entry.correct / entry.count) * 100) : 0,
     });
   }
   const start = new Date(today);
@@ -147,12 +150,11 @@ const formatDuration = (ms) => {
 };
 
 const trendLabel = (current, previous) => {
-  if (previous === 0 && current === 0) return '変化なし';
-  if (previous === 0) return '増加';
+  if (previous === 0 && current === 0) return '±0%';
+  if (previous === 0) return '+100%';
   const diff = current - previous;
   const pct = Math.round((diff / previous) * 100);
-  if (pct === 0) return '変化なし';
-  return pct > 0 ? `増加 +${pct}%` : `減少 ${pct}%`;
+  return (pct >= 0 ? '+' : '') + pct + '%';
 };
 
 const sumDayRange = (dayMap, start, days) => {
@@ -226,57 +228,28 @@ export default function StatsPage({ repo, onBack }) {
     : formatRangeLabel(activityPayload.start, activityPayload.end);
 
   const highlight = useMemo(() => {
+    let current, previous, label;
+
     if (mode === 'year') {
       const currentStart = new Date(activityPayload.start);
       const previousStart = new Date(currentStart);
       previousStart.setMonth(currentStart.getMonth() - 12);
-      const current = sumMonthRange(monthMap, currentStart, 12);
-      const previous = sumMonthRange(monthMap, previousStart, 12);
-      return {
-        periodLabel: '12ヶ月',
-        avgCount: Math.round(current.totalCount / 12),
-        totalTime: current.totalTime,
-        countTrend: trendLabel(current.totalCount, previous.totalCount),
-        timeTrend: trendLabel(current.totalTime, previous.totalTime),
-      };
-    }
-    const days = mode === 'week' ? 7 : 31;
-
-    // 7日平均の場合は「当日を含む7日間」の集計にする（スライディングウィンドウ）
-    if (mode === 'week') {
-      const today = toJstMidnight(new Date());
-      const currentEnd = new Date(today);
-      currentEnd.setDate(today.getDate() - (weekOffset * 7));
-
-      const currentStart = new Date(currentEnd);
-      currentStart.setDate(currentEnd.getDate() - 6);
-
-      const previousEnd = new Date(currentStart);
-      previousEnd.setDate(currentStart.getDate() - 1);
-
-      const previousStart = new Date(previousEnd);
-      previousStart.setDate(previousEnd.getDate() - 6);
-
-      const current = sumDayRange(dayMap, currentStart, 7);
-      const previous = sumDayRange(dayMap, previousStart, 7);
-
-      return {
-        periodLabel: '7日',
-        avgCount: Math.round(current.totalCount / 7),
-        totalTime: current.totalTime,
-        countTrend: trendLabel(current.totalCount, previous.totalCount),
-        timeTrend: trendLabel(current.totalTime, previous.totalTime),
-      };
+      current = sumMonthRange(monthMap, currentStart, 12);
+      previous = sumMonthRange(monthMap, previousStart, 12);
+      label = '12ヶ月';
+    } else {
+      const days = mode === 'week' ? 7 : 31;
+      const currentStart = new Date(activityPayload.start);
+      const previousStart = new Date(currentStart);
+      previousStart.setDate(currentStart.getDate() - days);
+      current = sumDayRange(dayMap, currentStart, days);
+      previous = sumDayRange(dayMap, previousStart, days);
+      label = mode === 'week' ? '7日間' : '31日間';
     }
 
-    const currentStart = new Date(activityPayload.start);
-    const previousStart = new Date(currentStart);
-    previousStart.setDate(currentStart.getDate() - days);
-    const current = sumDayRange(dayMap, currentStart, days);
-    const previous = sumDayRange(dayMap, previousStart, days);
     return {
-      periodLabel: mode === 'week' ? '7日' : '31日',
-      avgCount: Math.round(current.totalCount / days),
+      periodLabel: label,
+      totalCount: current.totalCount,
       totalTime: current.totalTime,
       countTrend: trendLabel(current.totalCount, previous.totalCount),
       timeTrend: trendLabel(current.totalTime, previous.totalTime),
@@ -299,18 +272,47 @@ export default function StatsPage({ repo, onBack }) {
     }));
   }, [items]);
 
-  const cumulativeData = useMemo(() => {
-    let sum = 0;
-    return activityData.map((d) => {
-      sum += d.count;
-      return { ...d, cumulative: sum };
-    });
-  }, [activityData]);
-
   const totalStatusCount = useMemo(
     () => currentStatusData.reduce((acc, cur) => acc + cur.value, 0),
     [currentStatusData],
   );
+
+  const renderTimeTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      const timeData = payload.find(p => p.dataKey === 'time');
+      const countData = payload.find(p => p.dataKey === 'count');
+      const ms = timeData ? timeData.value : 0;
+      const count = countData ? countData.value : 0;
+      return (
+        <div style={{ backgroundColor: '#fff', padding: '12px', borderRadius: '12px', border: '1px solid #f3f4f6', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+          <p style={{ margin: '0 0 8px', fontWeight: 'bold', color: '#374151', fontSize: '14px' }}>{label}</p>
+          <div style={{ color: '#6366f1', fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>
+            学習時間: {formatDuration(ms)}
+          </div>
+          <div style={{ color: '#6b7280', fontSize: '13px', fontWeight: 600 }}>
+            学習回数: {count}回
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const renderAccuracyTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      const val = payload[0].value;
+      const color = val > 70 ? '#2196f3' : val >= 50 ? '#4caf50' : val >= 33 ? '#ffc107' : '#f44336';
+      return (
+        <div style={{ backgroundColor: '#fff', padding: '12px', borderRadius: '12px', border: '1px solid #f3f4f6', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+          <p style={{ margin: '0 0 8px', fontWeight: 'bold', color: '#374151', fontSize: '14px' }}>{label}</p>
+          <div style={{ color: color, fontSize: '15px', fontWeight: 800 }}>
+            正解率: {val}%
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
 
   const renderBarTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
@@ -574,15 +576,10 @@ export default function StatsPage({ repo, onBack }) {
           </div>
 
           <div className="highlight-grid">
-            <div className="highlight-item">
-              <div className="highlight-title">{highlight.periodLabel}平均学習数</div>
-              <div className="highlight-value">{highlight.avgCount}回</div>
+            <div className="highlight-item" style={{ gridColumn: 'span 3' }}>
+              <div className="highlight-title">{highlight.periodLabel}の総学習数</div>
+              <div className="highlight-value">{highlight.totalCount}回</div>
               <div className="highlight-sub">前期間比: {highlight.countTrend}</div>
-            </div>
-            <div className="highlight-item">
-              <div className="highlight-title">{highlight.periodLabel}学習時間</div>
-              <div className="highlight-value">{formatDuration(highlight.totalTime)}</div>
-              <div className="highlight-sub">前期間比: {highlight.timeTrend}</div>
             </div>
           </div>
 
@@ -605,16 +602,65 @@ export default function StatsPage({ repo, onBack }) {
         </div>
 
         <div className="stats-card">
-          <div className="chart-title">累積学習回数</div>
-          <div style={{ height: 300, width: '100%' }}>
+          <div className="chart-title">学習頻度の推移</div>
+
+          <div className="highlight-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+            <div className="highlight-item">
+              <div className="highlight-title">{highlight.periodLabel}の総学習数</div>
+              <div className="highlight-value">{highlight.totalCount}回</div>
+              <div className="highlight-sub">前期間比: {highlight.countTrend}</div>
+            </div>
+            <div className="highlight-item">
+              <div className="highlight-title">{highlight.periodLabel}の学習時間</div>
+              <div className="highlight-value">{formatDuration(highlight.totalTime)}</div>
+              <div className="highlight-sub">前期間比: {highlight.timeTrend}</div>
+            </div>
+          </div>
+
+          <div style={{ height: 350, width: '100%' }}>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={cumulativeData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <BarChart data={activityData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                 <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                <Tooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
-                <Line type="monotone" dataKey="cumulative" name="累積回数" stroke="#4f46e5" strokeWidth={3} dot={false} />
-              </LineChart>
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 12, fill: '#9ca3af' }}
+                  tickFormatter={(val) => (val > 0 ? `${val}回` : '0')}
+                />
+                <Tooltip content={renderTimeTooltip} cursor={{ fill: '#f9fafb' }} />
+                <Bar dataKey="count" name="学習回数" fill="#6366f1" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="muted" style={{ textAlign: 'center', marginTop: 12, fontSize: 11 }}>
+            ※ 棒グラフは学習回数を表しています。マウスオーバーで学習時間も確認できます。
+          </div>
+        </div>
+
+        <div className="stats-card">
+          <div className="chart-title">正解率の推移</div>
+          <div style={{ height: 250, width: '100%' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={activityData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 12, fill: '#9ca3af' }}
+                  domain={[0, 100]}
+                  tickFormatter={(val) => `${val}%`}
+                />
+                <Tooltip content={renderAccuracyTooltip} cursor={{ fill: '#f9fafb' }} />
+                <Bar dataKey="accuracy" name="正解率" radius={[4, 4, 0, 0]}>
+                  {activityData.map((entry, index) => {
+                    const val = entry.accuracy;
+                    const color = val > 70 ? '#2196f3' : val >= 50 ? '#4caf50' : val >= 33 ? '#ffc107' : '#f44336';
+                    return <Cell key={`cell-${index}`} fill={color} />;
+                  })}
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
           </div>
         </div>

@@ -13,9 +13,9 @@ const CATEGORIES = ['単語', '慣用句', 'フレーズ'];
 // ステータスの色定義
 const STATUS_COLORS = {
   'まだまだ': { bg: '#9e9e9e', text: '#fff' },
-  '聞ける': { bg: '#ffc107', text: '#333' },
+  '読める': { bg: '#2196f3', text: '#fff' },
   '話せる': { bg: '#4caf50', text: '#fff' },
-  '書ける': { bg: '#2196f3', text: '#fff' },
+  '聞ける': { bg: '#ffc107', text: '#333' },
   'マスター': { bg: 'linear-gradient(135deg, #d4a000 0%, #ffd700 50%, #d4a000 100%)', text: '#333' },
 };
 
@@ -658,9 +658,9 @@ export default function FreeReview({ onBack, repo }) {
               <select className="filter-select" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
                 <option value="">すべて</option>
                 <option value="まだまだ">まだまだ</option>
-                <option value="聞ける">聞ける</option>
+                <option value="読める">読める</option>
                 <option value="話せる">話せる</option>
-                <option value="書ける">書ける</option>
+                <option value="聞ける">聞ける</option>
                 <option value="マスター">マスター</option>
               </select>
             </div>

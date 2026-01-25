@@ -67,6 +67,7 @@ export function useRepo() {
 
   // Attempts
   const addAttempt = async (att) => db.add('attempts', att);
+  const updateAttempt = async (att) => db.put('attempts', att);
   const listAttempts = async () => db.getAll('attempts');
 
   // Trophies
@@ -132,6 +133,7 @@ export function useRepo() {
     saveProgress,
     listProgress,
     addAttempt,
+    updateAttempt,
     listAttempts,
     listAchievements,
     addAchievement,

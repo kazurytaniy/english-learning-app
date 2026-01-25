@@ -83,13 +83,36 @@ export async function recordAnswer(repo, item, skill, isCorrect, elapsedMs = 0) 
   await repo.saveProgress(current);
   await repo.addAttempt({ item_id: item.id, skill, result: isCorrect, ts: Date.now(), elapsedMs });
 
-  // 完全マスター判定: A/B/C 全て mastered
-  const others = await Promise.all(['A', 'B', 'C'].map(async (s) => repo.getProgress(item.id, s) || defaultProgress(item, s)));
-  const allMastered = others.every((p) => p.mastered || p.skill === skill ? current.mastered : p.mastered);
+  // 単語ステータスの自動更新
+  const allProgs = await Promise.all(['A', 'B', 'C'].map(async (s) => (s === skill ? current : await repo.getProgress(item.id, s)) || defaultProgress(item, s)));
+  const isAMastered = allProgs.find((p) => p.skill === 'A')?.mastered;
+  const isBMastered = allProgs.find((p) => p.skill === 'B')?.mastered;
+  const isCMastered = allProgs.find((p) => p.skill === 'C')?.mastered;
+
+  let newStatus = 'まだまだ';
+  if (isAMastered && isBMastered && isCMastered) {
+    newStatus = 'マスター';
+  } else if (isAMastered) {
+    newStatus = '読める';
+  } else if (isCMastered) {
+    newStatus = '聞ける';
+  } else if (isBMastered) {
+    newStatus = '話せる';
+  }
+
+  // ステータスが変更された場合のみ更新
+  if (newStatus !== item.status) {
+    await repo.updateItem({ ...item, status: newStatus });
+  }
+
+  // 完全マスター判定 (Progressレコードの更新)
+  const allMastered = allProgs.every((p) => p.mastered);
   if (allMastered) {
-    for (const p of others) {
-      const up = { ...p, mastered: true, complete_master: true, next_due: p.next_due || todayStr() };
-      await repo.saveProgress(up);
+    for (const p of allProgs) {
+      if (!p.complete_master) {
+        const up = { ...p, mastered: true, complete_master: true, next_due: p.next_due || todayStr() };
+        await repo.saveProgress(up);
+      }
     }
   }
   return current;

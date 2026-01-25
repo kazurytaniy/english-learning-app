@@ -23,7 +23,24 @@ export default function LearnPage({
   useEffect(() => {
     setShowAnswer(false);
     setStartTime(Date.now());
-  }, [sessionId]);
+  }, [sessionId, current?.item?.id, current?.skill]);
+
+  useEffect(() => {
+    let hiddenAt = null;
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        hiddenAt = Date.now();
+      } else if (document.visibilityState === 'visible' && hiddenAt !== null) {
+        const hiddenDuration = Date.now() - hiddenAt;
+        setStartTime((prev) => prev + hiddenDuration);
+        hiddenAt = null;
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   if (!current) {
     return (

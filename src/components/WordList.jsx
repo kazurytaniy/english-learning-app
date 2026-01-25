@@ -10,9 +10,9 @@ const CATEGORIES = ['単語', '慣用句', 'フレーズ'];
 // ステータスの色定義
 const STATUS_COLORS = {
   'まだまだ': { bg: '#9e9e9e', text: '#fff' },
-  '聞ける': { bg: '#ffc107', text: '#333' },
+  '読める': { bg: '#2196f3', text: '#fff' },
   '話せる': { bg: '#4caf50', text: '#fff' },
-  '書ける': { bg: '#2196f3', text: '#fff' },
+  '聞ける': { bg: '#ffc107', text: '#333' },
   'マスター': { bg: 'linear-gradient(135deg, #d4a000 0%, #ffd700 50%, #d4a000 100%)', text: '#333' },
 };
 
@@ -128,6 +128,10 @@ export default function WordList({ repo, ready, onBack }) {
 
   const addOrUpdate = async () => {
     if (!ready || !en.trim() || !jaList.some(j => j.trim())) return;
+
+    const actionText = editingId ? '更新' : '登録';
+    if (!window.confirm(`この内容で単語を${actionText}しますか？`)) return;
+
     const filteredJaList = jaList.filter(j => j.trim());
     const payload = {
       en: en.trim(),
@@ -149,6 +153,9 @@ export default function WordList({ repo, ready, onBack }) {
       await ensureProgressForItem(repo, itemId);
     }
     await Promise.all(payload.tags.map((t) => repo.saveTag(t)));
+
+    alert(`単語を${actionText}しました。`);
+
     resetForm();
     await load();
   };

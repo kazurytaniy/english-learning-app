@@ -1,1 +1,1 @@
-export const STATUS_LEVELS = ['まだまだ', '聞ける', '話せる', '書ける', 'マスター'];
+export const STATUS_LEVELS = ['まだまだ', '読める', '話せる', '聞ける', 'マスター'];
