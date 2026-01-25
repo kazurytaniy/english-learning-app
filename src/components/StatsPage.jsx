@@ -16,6 +16,7 @@ import {
 } from 'recharts';
 import { STATUS_LEVELS } from '../utils/constants';
 import { formatDateJst } from '../utils/date';
+import { nextStage } from '../services/spacingService';
 
 const STATUS_COLORS = {
   'まだまだ': '#9e9e9e',
@@ -59,8 +60,11 @@ const buildMonthMap = (attempts) => {
 
 const buildWeekData = (dayMap, weekOffset) => {
   const today = toJstMidnight(new Date());
-  const start = new Date(today);
-  start.setDate(start.getDate() - start.getDay() - (weekOffset * 7));
+  const end = new Date(today);
+  end.setDate(end.getDate() - (weekOffset * 7));
+  const start = new Date(end);
+  start.setDate(end.getDate() - 6);
+
   const data = [];
   for (let i = 0; i < 7; i += 1) {
     const d = new Date(start);
@@ -77,7 +81,7 @@ const buildWeekData = (dayMap, weekOffset) => {
       accuracy: entry.count > 0 ? Math.round((entry.correct / entry.count) * 100) : 0,
     });
   }
-  return { data, start, end: new Date(start.getTime() + 6 * 86400000) };
+  return { data, start, end };
 };
 
 const buildMonthData = (dayMap, monthOffset) => {
@@ -189,6 +193,82 @@ const sumMonthRange = (monthMap, start, months) => {
   return { totalCount, totalTime };
 };
 
+const calculateStatusAt = (item, attemptsByItemSkill, intervals, ts) => {
+  const skills = ['A', 'B', 'C'];
+
+  // 指定された時刻ts以降に学習記録があるか確認
+  let hasLaterAttempt = false;
+  for (const skill of skills) {
+    const atts = attemptsByItemSkill[`${item.id}-${skill}`] || [];
+    if (atts.some(a => a.ts > ts)) {
+      hasLaterAttempt = true;
+      break;
+    }
+  }
+
+  // 以降に学習記録がない場合は、現在のステータスをそのまま採用する
+  // これにより、手動設定やインポートされた単語の整合性を保つ
+  if (!hasLaterAttempt) {
+    return item.status || 'まだまだ';
+  }
+
+  // 以降に記録がある場合は、過去の記録から当時のステータスを復元（シミュレーション）
+  const mastered = {};
+  skills.forEach(skill => {
+    const key = `${item.id}-${skill}`;
+    const atts = attemptsByItemSkill[key] || [];
+    let stage = 0;
+    let isMastered = false;
+    for (const att of atts) {
+      if (att.ts > ts) break;
+      const res = nextStage(stage, intervals, att.result);
+      stage = res.stage;
+      isMastered = stage >= intervals.length - 1;
+    }
+    mastered[skill] = isMastered;
+  });
+
+  if (mastered.A && mastered.B && mastered.C) return 'マスター';
+  if (mastered.A) return '読める';
+  if (mastered.C) return '聞ける';
+  if (mastered.B) return '話せる';
+  return 'まだまだ';
+};
+
+const buildStatusHistoryData = (items, attempts, settings, rangeData) => {
+  const intervals = [...(settings?.intervals || [1, 2, 4, 7, 15, 30])].sort((a, b) => a - b);
+
+  // Group attempts by item and skill
+  const attemptsByItemSkill = {};
+  attempts.forEach(att => {
+    const key = `${att.item_id}-${att.skill}`;
+    if (!attemptsByItemSkill[key]) attemptsByItemSkill[key] = [];
+    attemptsByItemSkill[key].push(att);
+  });
+  // Sort attempts by timestamp
+  Object.values(attemptsByItemSkill).forEach(list => list.sort((a, b) => a.ts - b.ts));
+
+  return rangeData.map(day => {
+    // day.date is YYYY-MM-DD
+    const dayEndTs = new Date(`${day.date}T23:59:59+09:00`).getTime();
+    const counts = { 'まだまだ': 0, '読める': 0, '話せる': 0, '聞ける': 0, 'マスター': 0 };
+
+    items.forEach(item => {
+      // 登録日または作成日がその日以前の場合のみカウント
+      const createdAt = item.created_at || 0;
+      if (createdAt > dayEndTs) return;
+
+      const status = calculateStatusAt(item, attemptsByItemSkill, intervals, dayEndTs);
+      if (counts[status] !== undefined) counts[status]++;
+    });
+
+    return {
+      ...day,
+      ...counts
+    };
+  });
+};
+
 export default function StatsPage({ repo, onBack }) {
   const [attempts, setAttempts] = useState([]);
   const [items, setItems] = useState([]);
@@ -197,17 +277,20 @@ export default function StatsPage({ repo, onBack }) {
   const [monthOffset, setMonthOffset] = useState(0);
   const [yearOffset, setYearOffset] = useState(0);
   const [touchStartX, setTouchStartX] = useState(null);
+  const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const [atts, itemList] = await Promise.all([
+      const [atts, itemList, sets] = await Promise.all([
         repo.listAttempts(),
         repo.listItems(),
+        repo.getSettings(),
       ]);
       setAttempts(atts);
       setItems(itemList);
+      setSettings(sets);
       setLoading(false);
     };
     load();
@@ -276,6 +359,11 @@ export default function StatsPage({ repo, onBack }) {
     () => currentStatusData.reduce((acc, cur) => acc + cur.value, 0),
     [currentStatusData],
   );
+
+  const statusHistoryData = useMemo(() => {
+    if (!settings) return [];
+    return buildStatusHistoryData(items, attempts, settings, activityData);
+  }, [items, attempts, settings, activityData]);
 
   const renderTimeTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
@@ -666,26 +754,57 @@ export default function StatsPage({ repo, onBack }) {
         </div>
 
         <div className="stats-card">
-          <div className="chart-title">現在のステータス</div>
-          <div style={{ height: 300, width: '100%' }}>
+          <div className="chart-title">
+            <span>単語登録数とステータスの推移</span>
+            <div className="muted" style={{ fontSize: 12, fontWeight: 'normal' }}>
+              累積の単語数と内訳を表示しています
+            </div>
+          </div>
+          <div style={{ height: 350, width: '100%' }}>
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={currentStatusData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {currentStatusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip content={renderPieTooltip} />
+              <BarChart data={statusHistoryData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
+                <Tooltip
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      const total = payload.reduce((sum, p) => sum + p.value, 0);
+                      return (
+                        <div style={{ backgroundColor: '#fff', padding: '12px', borderRadius: '12px', border: '1px solid #f3f4f6', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                          <p style={{ margin: '0 0 8px', fontWeight: 'bold', color: '#374151', fontSize: '14px' }}>{label}</p>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            {payload.slice().reverse().map((p) => (
+                              <div key={p.name} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <div style={{ width: 8, height: 8, backgroundColor: p.color, borderRadius: '50%' }} />
+                                  <span style={{ fontSize: '12px', color: '#4b5563' }}>{p.name}:</span>
+                                </div>
+                                <span style={{ fontSize: '12px', fontWeight: 700, color: '#111827' }}>{p.value}</span>
+                              </div>
+                            ))}
+                            <div style={{ marginTop: '6px', paddingTop: '6px', borderTop: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
+                              <span style={{ fontSize: '12px', color: '#374151' }}>合計:</span>
+                              <span style={{ fontSize: '12px', color: '#111827' }}>{total} 単語</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
                 <Legend />
-              </PieChart>
+                {STATUS_LEVELS.map((status) => (
+                  <Bar
+                    key={status}
+                    dataKey={status}
+                    name={status}
+                    stackId="status"
+                    fill={STATUS_COLORS[status]}
+                  />
+                ))}
+              </BarChart>
             </ResponsiveContainer>
           </div>
         </div>

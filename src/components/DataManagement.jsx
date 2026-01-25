@@ -68,6 +68,37 @@ export default function DataManagement({ repo, onBack }) {
     setStatus(`${count}件の学習時間を修正しました。統計を再度ご確認ください。`);
   };
 
+  const handleMigrateStatus = async () => {
+    const items = await repo.listItems();
+    const targets = items.filter(item => item.status === '書ける');
+
+    if (targets.length === 0) {
+      setStatus('ステータス「書ける」の単語は見つかりませんでした。');
+      return;
+    }
+
+    if (!window.confirm(`${targets.length}件の「書ける」ステータスの単語が見つかりました。\nこれらをスキルA（読める）の進捗状況に基づき、「読める」または「まだまだ」に移行しますか？`)) {
+      return;
+    }
+
+    let countRead = 0;
+    let countWait = 0;
+
+    for (const item of targets) {
+      // 読める（スキルA）が進捗しているか確認
+      const progA = await repo.getProgress(item.id, 'A');
+      const isReadMastered = progA && progA.mastered;
+
+      const newStatus = isReadMastered ? '読める' : 'まだまだ';
+      await repo.updateItem({ ...item, status: newStatus });
+
+      if (isReadMastered) countRead++;
+      else countWait++;
+    }
+
+    setStatus(`移行完了: ${countRead}件を「読める」に、${countWait}件を「まだまだ」に変更しました。`);
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4 word-page">
       <div className="form-card" style={{ maxWidth: 980, width: '100%', margin: '0 auto' }}>
@@ -77,6 +108,7 @@ export default function DataManagement({ repo, onBack }) {
         <div className="row" style={{ marginTop: 12, flexWrap: 'wrap' }}>
           <button className="btn btn-primary" onClick={handleExport}>エクスポート</button>
           <button className="btn btn-outline" onClick={handleImportClick}>インポート</button>
+          <button className="btn btn-ghost" onClick={handleMigrateStatus} style={{ color: '#4f46e5', borderColor: '#4f46e5' }}>旧ステータス移行</button>
           <button className="btn btn-ghost" onClick={handleCleanup} style={{ color: '#0284c7', borderColor: '#0284c7' }}>学習時間の異常修正</button>
           <button className="btn btn-ghost" onClick={handleReset} style={{ color: '#dc2626' }}>全データリセット</button>
         </div>

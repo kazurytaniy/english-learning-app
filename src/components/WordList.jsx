@@ -186,6 +186,22 @@ export default function WordList({ repo, ready, onBack }) {
     await load();
   };
 
+  const handleResetProgress = async () => {
+    if (!window.confirm('学習進捗データ（忘却曲線）のみをリセットします。単語自体は消えません。\n本当にデータをリセットしますか？')) return;
+    await repo.resetProgressOnly();
+    alert('全件の学習記録をリセットしました。');
+    await load();
+  };
+
+  const handleResetSingleItemProgress = async () => {
+    if (!editingId) return;
+    if (!window.confirm('この単語の学習記録（忘却曲線）のみをリセットします。単語自体は消えません。\n本当にデータをリセットしますか？')) return;
+    await repo.resetItemProgress(editingId);
+    alert('この単語の学習記録をリセットしました。');
+    await load();
+    resetForm();
+  };
+
   const toggleTag = (tag) => {
     setSelectedTags((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]);
   };
@@ -898,6 +914,20 @@ export default function WordList({ repo, ready, onBack }) {
             <div className="summary-sub">ステータス別の件数</div>
           </div>
           <div className="summary-total">{summary.total}件</div>
+          <button
+            className="btn btn-ghost"
+            onClick={handleResetProgress}
+            style={{
+              fontSize: '12px',
+              color: '#dc2626',
+              padding: '6px 12px',
+              border: '1px solid #fee2e2',
+              borderRadius: '8px',
+              marginLeft: '12px'
+            }}
+          >
+            全ての単語データをリセット
+          </button>
         </div>
         <div className="summary-grid">
           <div className="summary-item">
@@ -1087,9 +1117,23 @@ export default function WordList({ repo, ready, onBack }) {
 
         <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
           {editingId && (
-            <button className="btn btn-outline" style={{ flex: 1 }} onClick={resetForm}>
-              キャンセル
-            </button>
+            <>
+              <button className="btn btn-outline" style={{ flex: 1 }} onClick={resetForm}>
+                キャンセル
+              </button>
+              <button
+                className="btn"
+                style={{
+                  flex: 1,
+                  background: '#fff',
+                  color: '#dc2626',
+                  borderColor: '#fee2e2'
+                }}
+                onClick={handleResetSingleItemProgress}
+              >
+                学習記録をリセット
+              </button>
+            </>
           )}
           <button className="btn btn-primary" style={{ flex: 1 }} onClick={addOrUpdate}>
             {editingId ? '更新' : '登録'}

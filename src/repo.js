@@ -90,6 +90,52 @@ export function useRepo() {
     await db.put('settings', { id: 'spacing', intervals: [1, 2, 4, 7, 15, 30] });
   };
 
+  const resetProgressOnly = async () => {
+    const tx = db.transaction(['progress', 'attempts', 'items'], 'readwrite');
+    await tx.objectStore('progress').clear();
+    await tx.objectStore('attempts').clear();
+
+    // 全アイテムのステータスも「まだまだ」に戻す
+    const itemStore = tx.objectStore('items');
+    const items = await itemStore.getAll();
+    for (const item of items) {
+      await itemStore.put({ ...item, status: 'まだまだ' });
+    }
+
+    await tx.done;
+  };
+
+  const resetItemProgress = async (itemId) => {
+    const tx = db.transaction(['progress', 'attempts', 'items'], 'readwrite');
+
+    // 特定のアイテムに関連するprogressを削除
+    const progressStore = tx.objectStore('progress');
+    const progs = await progressStore.getAll();
+    for (const p of progs) {
+      if (p.item_id === itemId) {
+        await progressStore.delete(p.id);
+      }
+    }
+
+    // 特定のアイテムに関連するattemptsを削除
+    const attemptStore = tx.objectStore('attempts');
+    const atts = await attemptStore.getAll();
+    for (const a of atts) {
+      if (a.item_id === itemId) {
+        await attemptStore.delete(a.id);
+      }
+    }
+
+    // アイテム自体のステータスを「まだまだ」に戻す
+    const itemStore = tx.objectStore('items');
+    const item = await itemStore.get(itemId);
+    if (item) {
+      await itemStore.put({ ...item, status: 'まだまだ' });
+    }
+
+    await tx.done;
+  };
+
   // Data management
   const exportAll = async () => {
     const result = {};
@@ -141,6 +187,8 @@ export function useRepo() {
     getSession,
     clearSession,
     resetAll,
+    resetProgressOnly,
+    resetItemProgress,
     exportAll,
     importAll,
   };
