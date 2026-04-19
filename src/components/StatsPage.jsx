@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   BarChart,
   Bar,
@@ -16,6 +16,7 @@ import {
 } from 'recharts';
 import { STATUS_LEVELS } from '../utils/constants';
 import { formatDateJst } from '../utils/date';
+import { getWeakRanking } from '../services/statsService';
 
 const STATUS_COLORS = {
   'まだまだ': '#9e9e9e',
@@ -191,18 +192,21 @@ export default function StatsPage({ repo, onBack }) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [monthOffset, setMonthOffset] = useState(0);
   const [yearOffset, setYearOffset] = useState(0);
+  const [weakRanking, setWeakRanking] = useState([]);
   const [touchStartX, setTouchStartX] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const [atts, itemList] = await Promise.all([
+      const [atts, itemList, weakList] = await Promise.all([
         repo.listAttempts(),
         repo.listItems(),
+        getWeakRanking(repo, 20),
       ]);
       setAttempts(atts);
       setItems(itemList);
+      setWeakRanking(weakList);
       setLoading(false);
     };
     load();
@@ -490,6 +494,36 @@ export default function StatsPage({ repo, onBack }) {
           opacity: 0.4;
           cursor: not-allowed;
         }
+        .ranking-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 12px;
+        }
+        .ranking-table th {
+          text-align: left;
+          font-size: 12px;
+          color: #9ca3af;
+          padding: 8px 12px;
+          border-bottom: 1px solid #f3f4f6;
+        }
+        .ranking-table td {
+          padding: 12px;
+          border-bottom: 1px solid #f3f4f6;
+          font-size: 14px;
+        }
+        .skill-tiny-badge {
+          font-size: 10px;
+          padding: 2px 6px;
+          border-radius: 4px;
+          background: #f3f4f6;
+          color: #6b7280;
+          margin-right: 4px;
+        }
+        .skill-tiny-badge.warn {
+          background: #fee2e2;
+          color: #ef4444;
+          font-weight: 700;
+        }
       `}</style>
 
       <div style={{ maxWidth: 980, width: '100%', margin: '0 auto' }}>
@@ -609,6 +643,66 @@ export default function StatsPage({ repo, onBack }) {
               </ResponsiveContainer>
             </div>
           </div>
+        </div>
+
+        <div className="stats-card">
+          <div className="chart-title">
+            <span>苦手な単語ランキング TOP 20</span>
+            {weakRanking.length > 0 && (
+              <button
+                className="range-btn"
+                style={{ background: '#ef4444', color: '#fff', border: 'none' }}
+                onClick={() => onStartReview(weakRanking)}
+              >
+                この20件をまとめて復習
+              </button>
+            )}
+          </div>
+          {weakRanking.length > 0 ? (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="ranking-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: 40 }}>順位</th>
+                    <th>単語</th>
+                    <th>カテゴリ</th>
+                    <th>不正解数/総学習</th>
+                    <th>スキル別不正解</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {weakRanking.map((item, idx) => {
+                    const total = (item.wrong_count || 0) + (item.correct_count || 0);
+                    const acc = total > 0 ? Math.round((item.correct_count / total) * 100) : 0;
+                    return (
+                      <tr key={item.id}>
+                        <td style={{ fontWeight: 700, color: idx < 3 ? '#ef4444' : '#6b7280' }}>{idx + 1}</td>
+                        <td>
+                          <div style={{ fontWeight: 700 }}>{item.en}</div>
+                          <div style={{ fontSize: 12, color: '#9ca3af' }}>{item.ja}</div>
+                        </td>
+                        <td><span className="category-badge" style={{ fontSize: 11 }}>{item.category}</span></td>
+                        <td>
+                          <span style={{ color: '#ef4444', fontWeight: 700 }}>{item.wrong_count}</span>
+                          <span style={{ color: '#9ca3af', fontSize: 12 }}> / {total}</span>
+                          <div style={{ fontSize: 11, color: '#6b7280' }}>正解率: {acc}%</div>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                            <span className={`skill-tiny-badge ${item.skills.A > 0 ? 'warn' : ''}`}>英→日: {item.skills.A}</span>
+                            <span className={`skill-tiny-badge ${item.skills.B > 0 ? 'warn' : ''}`}>日→英: {item.skills.B}</span>
+                            <span className={`skill-tiny-badge ${item.skills.C > 0 ? 'warn' : ''}`}>List: {item.skills.C}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="muted" style={{ textAlign: 'center', padding: '20px' }}>データがありません</div>
+          )}
         </div>
       </div>
     </div>

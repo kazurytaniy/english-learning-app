@@ -94,3 +94,14 @@ export async function recordAnswer(repo, item, skill, isCorrect, elapsedMs = 0) 
   }
   return current;
 }
+
+export async function getLastAttemptDates(repo) {
+  const attempts = await repo.listAttempts();
+  const res = { A: 0, B: 0, C: 0 };
+  for (const att of attempts) {
+    if (att.ts > (res[att.skill] || 0)) {
+      res[att.skill] = att.ts;
+    }
+  }
+  return res;
+}

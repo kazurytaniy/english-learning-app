@@ -1,5 +1,5 @@
-﻿import React, { useEffect, useState } from 'react';
-import { computeStats } from '../services/statsService';
+import React, { useEffect, useState } from 'react';
+import { computeStats, getWeakRanking } from '../services/statsService';
 
 // アイコンコンポーネント
 const PlayIcon = () => (
@@ -41,11 +41,16 @@ const RepeatIcon = () => (
 
 export default function Dashboard({ repo, onStartLearn, onNavigate }) {
   const [stats, setStats] = useState(null);
+  const [weakRanking, setWeakRanking] = useState([]);
 
   useEffect(() => {
     const load = async () => {
-      const s = await computeStats(repo);
+      const [s, weakList] = await Promise.all([
+        computeStats(repo),
+        getWeakRanking(repo, 5)
+      ]);
       setStats(s);
+      setWeakRanking(weakList);
     };
     load();
   }, [repo]);
@@ -233,6 +238,66 @@ export default function Dashboard({ repo, onStartLearn, onNavigate }) {
           color: #9ca3af;
           margin-top: 4px;
         }
+
+        /* 苦手ランキング用スタイル */
+        .weak-ranking-card {
+          background: #fff;
+          border-radius: 16px;
+          padding: 20px;
+          margin-bottom: 16px;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+        .weak-ranking-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 12px;
+        }
+        .weak-ranking-title {
+          font-size: 15px;
+          font-weight: 700;
+          color: #ef4444;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .weak-ranking-list {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .weak-ranking-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 8px 12px;
+          background: #fef2f2;
+          border-radius: 10px;
+          font-size: 14px;
+        }
+        .weak-ranking-word {
+          font-weight: 700;
+          color: #1f2937;
+        }
+        .weak-ranking-meta {
+          color: #ef4444;
+          font-size: 12px;
+          font-weight: 700;
+        }
+        .weak-review-btn {
+          font-size: 12px;
+          font-weight: 700;
+          color: #fff;
+          background: #ef4444;
+          border: none;
+          padding: 6px 14px;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .weak-review-btn:hover {
+          background: #dc2626;
+        }
       `}</style>
 
       {/* ヘッダー */}
@@ -295,6 +360,38 @@ export default function Dashboard({ repo, onStartLearn, onNavigate }) {
           <div className="menu-description">学習の軌跡を確認</div>
         </div>
       </button>
+
+      {/* 苦手ランキング（TOP 5） */}
+      {weakRanking.length > 0 && (
+        <div className="weak-ranking-card">
+          <div className="weak-ranking-header">
+            <div className="weak-ranking-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              苦手ランキング TOP 5
+            </div>
+            <button className="weak-review-btn" onClick={() => onStartReview(weakRanking)}>
+              まとめて復習
+            </button>
+          </div>
+          <div className="weak-ranking-list">
+            {weakRanking.map((item, idx) => (
+              <div key={item.id} className="weak-ranking-item">
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                  <span style={{ color: '#ef4444', fontWeight: 800, fontSize: 13 }}>{idx + 1}</span>
+                  <span className="weak-ranking-word">{item.en}</span>
+                </div>
+                <div className="weak-ranking-meta">
+                  不正解: {item.wrong_count}回
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 今日の実績 */}
       <div className="stats-card">
