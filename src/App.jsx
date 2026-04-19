@@ -82,6 +82,38 @@ function App() {
     setPage(PAGES.LEARN);
   };
 
+  const startItemsReview = async (items, skills = ['A', 'B', 'C']) => {
+    if (!ready || !items || items.length === 0) return;
+    await repo.clearSession('schedule');
+    const newQueue = [];
+    for (const item of items) {
+      for (const s of skills) {
+        let prog = await repo.getProgress(item.id, s);
+        if (!prog) {
+          prog = {
+            id: `${item.id}-${s}`,
+            item_id: item.id,
+            skill: s,
+            stage: 0,
+            next_due: new Date().toISOString().split('T')[0],
+            correct_count: 0,
+            wrong_count: 0,
+            accuracy: 0,
+            mastered: false
+          };
+        }
+        newQueue.push({ item, skill: s, progress: prog });
+      }
+    }
+    setQueue(newQueue);
+    setAnswers([]);
+    const sid = `review-${Date.now()}`;
+    setSessionId(sid);
+    setTotalCount(newQueue.length);
+    await repo.saveSession('schedule', { id: sid, queue: newQueue, answers: [], totalCount: newQueue.length, skills, currentIndex: 0 });
+    setPage(PAGES.LEARN);
+  };
+
 
   const handleAnswer = async (item, skill, isCorrect, elapsedMs) => {
     await recordAnswer(repo, item, skill, isCorrect, elapsedMs);
@@ -113,7 +145,7 @@ function App() {
   };
 
   const renderPage = () => {
-    if (page === PAGES.DASH) return <Dashboard repo={repo} onStartLearn={() => setPage(PAGES.LEARN_MODE)} onNavigate={setPage} />;
+    if (page === PAGES.DASH) return <Dashboard repo={repo} onStartLearn={() => setPage(PAGES.LEARN_MODE)} onStartReview={startItemsReview} onNavigate={setPage} />;
     if (page === PAGES.LEARN_MODE) {
       return (
         <LearnModeSelect
@@ -163,7 +195,7 @@ function App() {
     if (page === PAGES.WORDS) return <WordList repo={repo} ready={ready} onBack={() => setPage(PAGES.DASH)} />;
     if (page === PAGES.SETTINGS) return <Settings repo={repo} onBack={() => setPage(PAGES.DASH)} />;
     if (page === PAGES.DATA) return <DataManagement repo={repo} onBack={() => setPage(PAGES.DASH)} />;
-    if (page === PAGES.STATS) return <StatsPage repo={repo} onBack={() => setPage(PAGES.DASH)} />;
+    if (page === PAGES.STATS) return <StatsPage repo={repo} onStartReview={startItemsReview} onBack={() => setPage(PAGES.DASH)} />;
     return null;
   };
 

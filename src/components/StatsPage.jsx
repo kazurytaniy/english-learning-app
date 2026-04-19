@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   BarChart,
   Bar,
@@ -16,14 +16,14 @@ import {
 } from 'recharts';
 import { STATUS_LEVELS } from '../utils/constants';
 import { formatDateJst } from '../utils/date';
-import { nextStage } from '../services/spacingService';
+import { getWeakRanking } from '../services/statsService';
 
 const STATUS_COLORS = {
   'まだまだ': '#9e9e9e',
-  '読める': '#2196f3',
-  '話せる': '#4caf50',
   '聞ける': '#ffc107',
-  'マスター': '#f59e0b',
+  '話せる': '#4caf50',
+  '書ける': '#2196f3',
+  'マスター': '#ffd700',
 };
 
 const toJstMidnight = (date) => {
@@ -60,11 +60,8 @@ const buildMonthMap = (attempts) => {
 
 const buildWeekData = (dayMap, weekOffset) => {
   const today = toJstMidnight(new Date());
-  const end = new Date(today);
-  end.setDate(end.getDate() - (weekOffset * 7));
-  const start = new Date(end);
-  start.setDate(end.getDate() - 6);
-
+  const start = new Date(today);
+  start.setDate(start.getDate() - start.getDay() - (weekOffset * 7));
   const data = [];
   for (let i = 0; i < 7; i += 1) {
     const d = new Date(start);
@@ -76,12 +73,10 @@ const buildWeekData = (dayMap, weekOffset) => {
       label: `${d.getMonth() + 1}/${d.getDate()}`,
       count: entry.count,
       correct: entry.correct,
-      incorrect: entry.count - entry.correct,
       time: entry.time,
-      accuracy: entry.count > 0 ? Math.round((entry.correct / entry.count) * 100) : 0,
     });
   }
-  return { data, start, end };
+  return { data, start, end: new Date(start.getTime() + 6 * 86400000) };
 };
 
 const buildMonthData = (dayMap, monthOffset) => {
@@ -101,9 +96,7 @@ const buildMonthData = (dayMap, monthOffset) => {
       label: `${d.getMonth() + 1}/${d.getDate()}`,
       count: entry.count,
       correct: entry.correct,
-      incorrect: entry.count - entry.correct,
       time: entry.time,
-      accuracy: entry.count > 0 ? Math.round((entry.correct / entry.count) * 100) : 0,
     });
   }
   return { data, start, end };
@@ -122,9 +115,7 @@ const buildYearData = (monthMap, yearOffset) => {
       label: `${d.getFullYear()}/${d.getMonth() + 1}`,
       count: entry.count,
       correct: entry.correct,
-      incorrect: entry.count - entry.correct,
       time: entry.time,
-      accuracy: entry.count > 0 ? Math.round((entry.correct / entry.count) * 100) : 0,
     });
   }
   const start = new Date(today);
@@ -154,11 +145,12 @@ const formatDuration = (ms) => {
 };
 
 const trendLabel = (current, previous) => {
-  if (previous === 0 && current === 0) return '±0%';
-  if (previous === 0) return '+100%';
+  if (previous === 0 && current === 0) return '変化なし';
+  if (previous === 0) return '増加';
   const diff = current - previous;
   const pct = Math.round((diff / previous) * 100);
-  return (pct >= 0 ? '+' : '') + pct + '%';
+  if (pct === 0) return '変化なし';
+  return pct > 0 ? `増加 +${pct}%` : `減少 ${pct}%`;
 };
 
 const sumDayRange = (dayMap, start, days) => {
@@ -193,82 +185,6 @@ const sumMonthRange = (monthMap, start, months) => {
   return { totalCount, totalTime };
 };
 
-const calculateStatusAt = (item, attemptsByItemSkill, intervals, ts) => {
-  const skills = ['A', 'B', 'C'];
-
-  // 指定された時刻ts以降に学習記録があるか確認
-  let hasLaterAttempt = false;
-  for (const skill of skills) {
-    const atts = attemptsByItemSkill[`${item.id}-${skill}`] || [];
-    if (atts.some(a => a.ts > ts)) {
-      hasLaterAttempt = true;
-      break;
-    }
-  }
-
-  // 以降に学習記録がない場合は、現在のステータスをそのまま採用する
-  // これにより、手動設定やインポートされた単語の整合性を保つ
-  if (!hasLaterAttempt) {
-    return item.status || 'まだまだ';
-  }
-
-  // 以降に記録がある場合は、過去の記録から当時のステータスを復元（シミュレーション）
-  const mastered = {};
-  skills.forEach(skill => {
-    const key = `${item.id}-${skill}`;
-    const atts = attemptsByItemSkill[key] || [];
-    let stage = 0;
-    let isMastered = false;
-    for (const att of atts) {
-      if (att.ts > ts) break;
-      const res = nextStage(stage, intervals, att.result);
-      stage = res.stage;
-      isMastered = stage >= intervals.length - 1;
-    }
-    mastered[skill] = isMastered;
-  });
-
-  if (mastered.A && mastered.B && mastered.C) return 'マスター';
-  if (mastered.A) return '読める';
-  if (mastered.C) return '聞ける';
-  if (mastered.B) return '話せる';
-  return 'まだまだ';
-};
-
-const buildStatusHistoryData = (items, attempts, settings, rangeData) => {
-  const intervals = [...(settings?.intervals || [1, 2, 4, 7, 15, 30])].sort((a, b) => a - b);
-
-  // Group attempts by item and skill
-  const attemptsByItemSkill = {};
-  attempts.forEach(att => {
-    const key = `${att.item_id}-${att.skill}`;
-    if (!attemptsByItemSkill[key]) attemptsByItemSkill[key] = [];
-    attemptsByItemSkill[key].push(att);
-  });
-  // Sort attempts by timestamp
-  Object.values(attemptsByItemSkill).forEach(list => list.sort((a, b) => a.ts - b.ts));
-
-  return rangeData.map(day => {
-    // day.date is YYYY-MM-DD
-    const dayEndTs = new Date(`${day.date}T23:59:59+09:00`).getTime();
-    const counts = { 'まだまだ': 0, '読める': 0, '話せる': 0, '聞ける': 0, 'マスター': 0 };
-
-    items.forEach(item => {
-      // 登録日または作成日がその日以前の場合のみカウント
-      const createdAt = item.created_at || 0;
-      if (createdAt > dayEndTs) return;
-
-      const status = calculateStatusAt(item, attemptsByItemSkill, intervals, dayEndTs);
-      if (counts[status] !== undefined) counts[status]++;
-    });
-
-    return {
-      ...day,
-      ...counts
-    };
-  });
-};
-
 export default function StatsPage({ repo, onBack }) {
   const [attempts, setAttempts] = useState([]);
   const [items, setItems] = useState([]);
@@ -276,21 +192,21 @@ export default function StatsPage({ repo, onBack }) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [monthOffset, setMonthOffset] = useState(0);
   const [yearOffset, setYearOffset] = useState(0);
+  const [weakRanking, setWeakRanking] = useState([]);
   const [touchStartX, setTouchStartX] = useState(null);
-  const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const [atts, itemList, sets] = await Promise.all([
+      const [atts, itemList, weakList] = await Promise.all([
         repo.listAttempts(),
         repo.listItems(),
-        repo.getSettings(),
+        getWeakRanking(repo, 20),
       ]);
       setAttempts(atts);
       setItems(itemList);
-      setSettings(sets);
+      setWeakRanking(weakList);
       setLoading(false);
     };
     load();
@@ -311,28 +227,29 @@ export default function StatsPage({ repo, onBack }) {
     : formatRangeLabel(activityPayload.start, activityPayload.end);
 
   const highlight = useMemo(() => {
-    let current, previous, label;
-
     if (mode === 'year') {
       const currentStart = new Date(activityPayload.start);
       const previousStart = new Date(currentStart);
       previousStart.setMonth(currentStart.getMonth() - 12);
-      current = sumMonthRange(monthMap, currentStart, 12);
-      previous = sumMonthRange(monthMap, previousStart, 12);
-      label = '12ヶ月';
-    } else {
-      const days = mode === 'week' ? 7 : 31;
-      const currentStart = new Date(activityPayload.start);
-      const previousStart = new Date(currentStart);
-      previousStart.setDate(currentStart.getDate() - days);
-      current = sumDayRange(dayMap, currentStart, days);
-      previous = sumDayRange(dayMap, previousStart, days);
-      label = mode === 'week' ? '7日間' : '31日間';
+      const current = sumMonthRange(monthMap, currentStart, 12);
+      const previous = sumMonthRange(monthMap, previousStart, 12);
+      return {
+        periodLabel: '12ヶ月',
+        avgCount: Math.round(current.totalCount / 12),
+        totalTime: current.totalTime,
+        countTrend: trendLabel(current.totalCount, previous.totalCount),
+        timeTrend: trendLabel(current.totalTime, previous.totalTime),
+      };
     }
-
+    const days = mode === 'week' ? 7 : 31;
+    const currentStart = new Date(activityPayload.start);
+    const previousStart = new Date(currentStart);
+    previousStart.setDate(currentStart.getDate() - days);
+    const current = sumDayRange(dayMap, currentStart, days);
+    const previous = sumDayRange(dayMap, previousStart, days);
     return {
-      periodLabel: label,
-      totalCount: current.totalCount,
+      periodLabel: mode === 'week' ? '7日' : '31日',
+      avgCount: Math.round(current.totalCount / days),
       totalTime: current.totalTime,
       countTrend: trendLabel(current.totalCount, previous.totalCount),
       timeTrend: trendLabel(current.totalTime, previous.totalTime),
@@ -355,58 +272,25 @@ export default function StatsPage({ repo, onBack }) {
     }));
   }, [items]);
 
+  const cumulativeData = useMemo(() => {
+    let sum = 0;
+    return activityData.map((d) => {
+      sum += d.count;
+      return { ...d, cumulative: sum };
+    });
+  }, [activityData]);
+
   const totalStatusCount = useMemo(
     () => currentStatusData.reduce((acc, cur) => acc + cur.value, 0),
     [currentStatusData],
   );
 
-  const statusHistoryData = useMemo(() => {
-    if (!settings) return [];
-    return buildStatusHistoryData(items, attempts, settings, activityData);
-  }, [items, attempts, settings, activityData]);
-
-  const renderTimeTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      const timeData = payload.find(p => p.dataKey === 'time');
-      const countData = payload.find(p => p.dataKey === 'count');
-      const ms = timeData ? timeData.value : 0;
-      const count = countData ? countData.value : 0;
-      return (
-        <div style={{ backgroundColor: '#fff', padding: '12px', borderRadius: '12px', border: '1px solid #f3f4f6', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-          <p style={{ margin: '0 0 8px', fontWeight: 'bold', color: '#374151', fontSize: '14px' }}>{label}</p>
-          <div style={{ color: '#6366f1', fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>
-            学習時間: {formatDuration(ms)}
-          </div>
-          <div style={{ color: '#6b7280', fontSize: '13px', fontWeight: 600 }}>
-            学習回数: {count}回
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  const renderAccuracyTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      const val = payload[0].value;
-      const color = val > 70 ? '#2196f3' : val >= 50 ? '#4caf50' : val >= 33 ? '#ffc107' : '#f44336';
-      return (
-        <div style={{ backgroundColor: '#fff', padding: '12px', borderRadius: '12px', border: '1px solid #f3f4f6', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-          <p style={{ margin: '0 0 8px', fontWeight: 'bold', color: '#374151', fontSize: '14px' }}>{label}</p>
-          <div style={{ color: color, fontSize: '15px', fontWeight: 800 }}>
-            正解率: {val}%
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
-
   const renderBarTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       const correctData = payload.find((p) => p.dataKey === 'correct');
+      const countData = payload.find((p) => p.dataKey === 'count');
       const correct = correctData ? correctData.value : 0;
-      const count = payload[0].payload.count;
+      const count = countData ? countData.value : 0;
       const accuracy = count > 0 ? Math.round((correct / count) * 100) : 0;
 
       return (
@@ -475,14 +359,9 @@ export default function StatsPage({ repo, onBack }) {
     if (touchStartX === null) return;
     const endX = e.changedTouches[0]?.clientX ?? touchStartX;
     const diff = endX - touchStartX;
-    if (Math.abs(diff) > 50) { // しきい値を少し上げ 50px に
-      if (diff < 0) {
-        // 指を左へ動かす -> 未来(次)を表示
-        handleNext();
-      } else {
-        // 指を右へ動かす -> 過去(前)を表示
-        handlePrev();
-      }
+    if (Math.abs(diff) > 40) {
+      if (diff < 0) handlePrev();
+      if (diff > 0) handleNext();
     }
     setTouchStartX(null);
   };
@@ -494,32 +373,6 @@ export default function StatsPage({ repo, onBack }) {
       </div>
     );
   }
-
-  const renderSectionHeader = (title) => (
-    <div className="chart-title">
-      <span>{title}</span>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-        <div className="range-nav">
-          <button className="range-btn" type="button" onClick={handlePrev}>前</button>
-          <span style={{ fontSize: 12, color: '#6b7280', fontWeight: 600 }}>{activityRangeLabel}</span>
-          <button className="range-btn" type="button" onClick={handleNext} disabled={!canNext}>次</button>
-        </div>
-        <div className="filter-tabs">
-          <div className={`filter-tab ${mode === 'week' ? 'active' : ''}`} onClick={() => { setMode('week'); setWeekOffset(0); }}>
-            週
-          </div>
-          <div className={`filter-tab ${mode === 'month' ? 'active' : ''}`} onClick={() => { setMode('month'); setMonthOffset(0); }}>
-            月
-          </div>
-          <div className={`filter-tab ${mode === 'year' ? 'active' : ''}`} onClick={() => { setMode('year'); setYearOffset(0); }}>
-            年
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const touchProps = { onTouchStart: handleTouchStart, onTouchEnd: handleTouchEnd };
 
   return (
     <div className="min-h-screen flex flex-col items-center gap-4 px-4 py-6 word-page">
@@ -641,6 +494,36 @@ export default function StatsPage({ repo, onBack }) {
           opacity: 0.4;
           cursor: not-allowed;
         }
+        .ranking-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 12px;
+        }
+        .ranking-table th {
+          text-align: left;
+          font-size: 12px;
+          color: #9ca3af;
+          padding: 8px 12px;
+          border-bottom: 1px solid #f3f4f6;
+        }
+        .ranking-table td {
+          padding: 12px;
+          border-bottom: 1px solid #f3f4f6;
+          font-size: 14px;
+        }
+        .skill-tiny-badge {
+          font-size: 10px;
+          padding: 2px 6px;
+          border-radius: 4px;
+          background: #f3f4f6;
+          color: #6b7280;
+          margin-right: 4px;
+        }
+        .skill-tiny-badge.warn {
+          background: #fee2e2;
+          color: #ef4444;
+          font-weight: 700;
+        }
       `}</style>
 
       <div style={{ maxWidth: 980, width: '100%', margin: '0 auto' }}>
@@ -666,18 +549,43 @@ export default function StatsPage({ repo, onBack }) {
           </div>
         </div>
 
-        <div className="stats-card" {...touchProps}>
-          {renderSectionHeader('学習量の推移')}
-
-          <div className="highlight-grid">
-            <div className="highlight-item" style={{ gridColumn: 'span 3' }}>
-              <div className="highlight-title">{highlight.periodLabel}の総学習数</div>
-              <div className="highlight-value">{highlight.totalCount}回</div>
-              <div className="highlight-sub">前期間比: {highlight.countTrend}</div>
+        <div className="stats-card">
+          <div className="chart-title">
+            <span>学習量の推移</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <div className="range-nav">
+                <button className="range-btn" type="button" onClick={handlePrev}>前</button>
+                <span style={{ fontSize: 12, color: '#6b7280', fontWeight: 600 }}>{activityRangeLabel}</span>
+                <button className="range-btn" type="button" onClick={handleNext} disabled={!canNext}>次</button>
+              </div>
+              <div className="filter-tabs">
+                <div className={`filter-tab ${mode === 'week' ? 'active' : ''}`} onClick={() => { setMode('week'); setWeekOffset(0); }}>
+                  週
+                </div>
+                <div className={`filter-tab ${mode === 'month' ? 'active' : ''}`} onClick={() => { setMode('month'); setMonthOffset(0); }}>
+                  月
+                </div>
+                <div className={`filter-tab ${mode === 'year' ? 'active' : ''}`} onClick={() => { setMode('year'); setYearOffset(0); }}>
+                  年
+                </div>
+              </div>
             </div>
           </div>
 
-          <div style={{ height: 300, width: '100%' }}>
+          <div className="highlight-grid">
+            <div className="highlight-item">
+              <div className="highlight-title">{highlight.periodLabel}平均学習数</div>
+              <div className="highlight-value">{highlight.avgCount}回</div>
+              <div className="highlight-sub">前期間比: {highlight.countTrend}</div>
+            </div>
+            <div className="highlight-item">
+              <div className="highlight-title">{highlight.periodLabel}学習時間</div>
+              <div className="highlight-value">{formatDuration(highlight.totalTime)}</div>
+              <div className="highlight-sub">前期間比: {highlight.timeTrend}</div>
+            </div>
+          </div>
+
+          <div style={{ height: 300, width: '100%' }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={activityData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
@@ -686,7 +594,7 @@ export default function StatsPage({ repo, onBack }) {
                 <Tooltip content={renderBarTooltip} cursor={{ fill: '#f9fafb' }} />
                 <Legend />
                 <Bar dataKey="correct" name="正解" stackId="a" fill="#4caf50" radius={[0, 0, 4, 4]} />
-                <Bar dataKey="incorrect" name="未正解" stackId="a" fill="#e5e7eb" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="count" name="総数" stackId="a" fill="#e5e7eb" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -695,124 +603,106 @@ export default function StatsPage({ repo, onBack }) {
           </div>
         </div>
 
-        <div className="stats-card" {...touchProps}>
-          {renderSectionHeader('学習頻度の推移')}
-
-          <div className="highlight-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
-            <div className="highlight-item">
-              <div className="highlight-title">{highlight.periodLabel}の総学習数</div>
-              <div className="highlight-value">{highlight.totalCount}回</div>
-              <div className="highlight-sub">前期間比: {highlight.countTrend}</div>
-            </div>
-            <div className="highlight-item">
-              <div className="highlight-title">{highlight.periodLabel}の学習時間</div>
-              <div className="highlight-value">{formatDuration(highlight.totalTime)}</div>
-              <div className="highlight-sub">前期間比: {highlight.timeTrend}</div>
+        <div className="row">
+          <div className="stats-card" style={{ flex: 1 }}>
+            <div className="chart-title">現在のステータス</div>
+            <div style={{ height: 300, width: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={currentStatusData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {currentStatusData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={renderPieTooltip} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
             </div>
           </div>
 
-          <div style={{ height: 350, width: '100%' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={activityData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: '#9ca3af' }}
-                  tickFormatter={(val) => (val > 0 ? `${val}回` : '0')}
-                />
-                <Tooltip content={renderTimeTooltip} cursor={{ fill: '#f9fafb' }} />
-                <Bar dataKey="count" name="学習回数" fill="#6366f1" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="muted" style={{ textAlign: 'center', marginTop: 12, fontSize: 11 }}>
-            ※ 棒グラフは学習回数を表しています。マウスオーバーで学習時間も確認できます。
+          <div className="stats-card" style={{ flex: 1 }}>
+            <div className="chart-title">累積学習回数</div>
+            <div style={{ height: 300, width: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={cumulativeData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                  <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
+                  <Tooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                  <Line type="monotone" dataKey="cumulative" name="累積回数" stroke="#4f46e5" strokeWidth={3} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
 
-        <div className="stats-card" {...touchProps}>
-          {renderSectionHeader('正解率の推移')}
-          <div style={{ height: 250, width: '100%' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={activityData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: '#9ca3af' }}
-                  domain={[0, 100]}
-                  tickFormatter={(val) => `${val}%`}
-                />
-                <Tooltip content={renderAccuracyTooltip} cursor={{ fill: '#f9fafb' }} />
-                <Bar dataKey="accuracy" name="正解率" radius={[4, 4, 0, 0]}>
-                  {activityData.map((entry, index) => {
-                    const val = entry.accuracy;
-                    const color = val > 70 ? '#2196f3' : val >= 50 ? '#4caf50' : val >= 33 ? '#ffc107' : '#f44336';
-                    return <Cell key={`cell-${index}`} fill={color} />;
-                  })}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+        <div className="stats-card">
+          <div className="chart-title">
+            <span>苦手な単語ランキング TOP 20</span>
+            {weakRanking.length > 0 && (
+              <button
+                className="range-btn"
+                style={{ background: '#ef4444', color: '#fff', border: 'none' }}
+                onClick={() => onStartReview(weakRanking)}
+              >
+                この20件をまとめて復習
+              </button>
+            )}
           </div>
-        </div>
-
-        <div className="stats-card" {...touchProps}>
-          {renderSectionHeader('単語登録数とステータスの推移')}
-          <div style={{ marginTop: -8, marginBottom: 16 }}>
-            <div className="muted" style={{ fontSize: 12, fontWeight: 'normal' }}>
-              累積の単語数と内訳を表示しています
-            </div>
-          </div>
-          <div style={{ height: 350, width: '100%' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={statusHistoryData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                <Tooltip
-                  content={({ active, payload, label }) => {
-                    if (active && payload && payload.length) {
-                      const total = payload.reduce((sum, p) => sum + p.value, 0);
-                      return (
-                        <div style={{ backgroundColor: '#fff', padding: '12px', borderRadius: '12px', border: '1px solid #f3f4f6', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-                          <p style={{ margin: '0 0 8px', fontWeight: 'bold', color: '#374151', fontSize: '14px' }}>{label}</p>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            {payload.slice().reverse().map((p) => (
-                              <div key={p.name} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                  <div style={{ width: 8, height: 8, backgroundColor: p.color, borderRadius: '50%' }} />
-                                  <span style={{ fontSize: '12px', color: '#4b5563' }}>{p.name}:</span>
-                                </div>
-                                <span style={{ fontSize: '12px', fontWeight: 700, color: '#111827' }}>{p.value}</span>
-                              </div>
-                            ))}
-                            <div style={{ marginTop: '6px', paddingTop: '6px', borderTop: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
-                              <span style={{ fontSize: '12px', color: '#374151' }}>合計:</span>
-                              <span style={{ fontSize: '12px', color: '#111827' }}>{total} 単語</span>
-                            </div>
+          {weakRanking.length > 0 ? (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="ranking-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: 40 }}>順位</th>
+                    <th>単語</th>
+                    <th>カテゴリ</th>
+                    <th>不正解数/総学習</th>
+                    <th>スキル別不正解</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {weakRanking.map((item, idx) => {
+                    const total = (item.wrong_count || 0) + (item.correct_count || 0);
+                    const acc = total > 0 ? Math.round((item.correct_count / total) * 100) : 0;
+                    return (
+                      <tr key={item.id}>
+                        <td style={{ fontWeight: 700, color: idx < 3 ? '#ef4444' : '#6b7280' }}>{idx + 1}</td>
+                        <td>
+                          <div style={{ fontWeight: 700 }}>{item.en}</div>
+                          <div style={{ fontSize: 12, color: '#9ca3af' }}>{item.ja}</div>
+                        </td>
+                        <td><span className="category-badge" style={{ fontSize: 11 }}>{item.category}</span></td>
+                        <td>
+                          <span style={{ color: '#ef4444', fontWeight: 700 }}>{item.wrong_count}</span>
+                          <span style={{ color: '#9ca3af', fontSize: 12 }}> / {total}</span>
+                          <div style={{ fontSize: 11, color: '#6b7280' }}>正解率: {acc}%</div>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                            <span className={`skill-tiny-badge ${item.skills.A > 0 ? 'warn' : ''}`}>英→日: {item.skills.A}</span>
+                            <span className={`skill-tiny-badge ${item.skills.B > 0 ? 'warn' : ''}`}>日→英: {item.skills.B}</span>
+                            <span className={`skill-tiny-badge ${item.skills.C > 0 ? 'warn' : ''}`}>List: {item.skills.C}</span>
                           </div>
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-                <Legend />
-                {STATUS_LEVELS.map((status) => (
-                  <Bar
-                    key={status}
-                    dataKey={status}
-                    name={status}
-                    stackId="status"
-                    fill={STATUS_COLORS[status]}
-                  />
-                ))}
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="muted" style={{ textAlign: 'center', padding: '20px' }}>データがありません</div>
+          )}
         </div>
       </div>
     </div>

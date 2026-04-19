@@ -1,18 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { countTodayQueue } from '../services/scheduleService';
+import { countTodayQueue, getLastAttemptDates } from '../services/scheduleService';
 
 export default function LearnModeSelect({ repo, onStart, onBack }) {
   const [counts, setCounts] = useState({ A: 0, B: 0, C: 0 });
+  const [lastDates, setLastDates] = useState({ A: 0, B: 0, C: 0 });
   const [startError, setStartError] = useState('');
 
   const loadCounts = async () => {
     if (!repo) return;
-    const [aCount, bCount, cCount] = await Promise.all([
+    const [aCount, bCount, cCount, dates] = await Promise.all([
       countTodayQueue(repo, ['A']),
       countTodayQueue(repo, ['B']),
       countTodayQueue(repo, ['C']),
+      getLastAttemptDates(repo),
     ]);
     setCounts({ A: aCount, B: bCount, C: cCount });
+    setLastDates(dates);
   };
 
   useEffect(() => {
@@ -63,7 +66,43 @@ export default function LearnModeSelect({ repo, onStart, onBack }) {
     padding: '8px 16px'
   };
 
-  const formatCountLabel = (value) => (value >= 30 ? '30件以上' : `${value}件`);
+  const numberStyle = {
+    fontSize: 24,
+    fontWeight: 800,
+    color: '#111827',
+    verticalAlign: 'baseline'
+  };
+
+  const smallLabelStyle = {
+    fontSize: 12,
+    color: '#6b7280',
+    marginLeft: 2,
+    marginRight: 4
+  };
+
+  const RenderCount = ({ value }) => {
+    const units = Math.ceil(value / 30);
+    return (
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 2 }}>
+        <span style={numberStyle}>{units}</span>
+        <span style={smallLabelStyle}>コマ</span>
+        <span style={{ ...smallLabelStyle, whiteSpace: 'nowrap' }}>(1コマ30件)、</span>
+        <span style={smallLabelStyle}>総件数</span>
+        <span style={numberStyle}>{value}</span>
+        <span style={smallLabelStyle}>件</span>
+      </div>
+    );
+  };
+
+  const formatDaysAgo = (ts) => {
+    if (!ts) return '未学習';
+    const now = new Date();
+    const last = new Date(ts);
+    const diffTime = now.setHours(0, 0, 0, 0) - last.setHours(0, 0, 0, 0);
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return '今日';
+    return `${diffDays}日前`;
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center word-page">
@@ -78,9 +117,12 @@ export default function LearnModeSelect({ repo, onStart, onBack }) {
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {/* 英→日 */}
             <div style={rowStyle}>
-              <div className="skill-badge skill-badge-a">英→日</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div className="skill-badge skill-badge-a">英→日</div>
+                <span style={{ fontSize: 12, color: '#6b7280' }}>{formatDaysAgo(lastDates.A)}</span>
+              </div>
               <div style={countStyle}>
-                <span style={countNumberStyle}>{formatCountLabel(counts.A)}</span>
+                <RenderCount value={counts.A} />
               </div>
               <button
                 type="button"
@@ -94,9 +136,12 @@ export default function LearnModeSelect({ repo, onStart, onBack }) {
 
             {/* 日→英 */}
             <div style={rowStyle}>
-              <div className="skill-badge skill-badge-b">日→英</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div className="skill-badge skill-badge-b">日→英</div>
+                <span style={{ fontSize: 12, color: '#6b7280' }}>{formatDaysAgo(lastDates.B)}</span>
+              </div>
               <div style={countStyle}>
-                <span style={countNumberStyle}>{formatCountLabel(counts.B)}</span>
+                <RenderCount value={counts.B} />
               </div>
               <button
                 type="button"
@@ -110,9 +155,12 @@ export default function LearnModeSelect({ repo, onStart, onBack }) {
 
             {/* Listening */}
             <div style={{ ...rowStyle, borderBottom: 'none' }}>
-              <div className="skill-badge skill-badge-c">Listening</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div className="skill-badge skill-badge-c">Listening</div>
+                <span style={{ fontSize: 12, color: '#6b7280' }}>{formatDaysAgo(lastDates.C)}</span>
+              </div>
               <div style={countStyle}>
-                <span style={countNumberStyle}>{formatCountLabel(counts.C)}</span>
+                <RenderCount value={counts.C} />
               </div>
               <button
                 type="button"

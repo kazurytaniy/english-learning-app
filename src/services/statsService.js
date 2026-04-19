@@ -57,3 +57,35 @@ export async function computeStats(repo) {
   };
   return stats;
 }
+
+export async function getWeakRanking(repo, limit = 20) {
+  const items = await repo.listItems();
+  const progresses = await repo.listProgress();
+
+  const itemMap = {};
+  items.forEach((item) => {
+    itemMap[item.id] = {
+      ...item,
+      wrong_count: 0,
+      correct_count: 0,
+      skills: { A: 0, B: 0, C: 0 }
+    };
+  });
+
+  progresses.forEach((p) => {
+    if (itemMap[p.item_id]) {
+      const wrong = p.wrong_count || 0;
+      const correct = p.correct_count || 0;
+      itemMap[p.item_id].wrong_count += wrong;
+      itemMap[p.item_id].correct_count += correct;
+      itemMap[p.item_id].skills[p.skill] = wrong;
+    }
+  });
+
+  const ranking = Object.values(itemMap)
+    .filter((item) => item.wrong_count > 0 || item.correct_count > 0)
+    .sort((a, b) => b.wrong_count - a.wrong_count || a.correct_count - b.correct_count)
+    .slice(0, limit);
+
+  return ranking;
+}

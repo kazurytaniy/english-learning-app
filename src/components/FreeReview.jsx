@@ -55,6 +55,7 @@ export default function FreeReview({ onBack, repo }) {
   const [filterTag, setFilterTag] = useState('');
   const [searchText, setSearchText] = useState('');
   const [maxAccuracy, setMaxAccuracy] = useState('');
+  const [filterLimit, setFilterLimit] = useState('20');
   const [searchTrigger, setSearchTrigger] = useState(0);
   const [sortKey, setSortKey] = useState('weak');
   const [selectedIds, setSelectedIds] = useState([]);
@@ -99,8 +100,9 @@ export default function FreeReview({ onBack, repo }) {
       const acc = stat?.accuracy ?? 0;
       return acc <= max;
     });
-    return sortItems(list, progressMap, sortKey, skill);
-  }, [items, filterCategory, filterStatus, filterTag, searchText, maxAccuracy, progressMap, sortKey, skill, searchTrigger]);
+    const sorted = sortItems(list, progressMap, sortKey, skill);
+    return filterLimit ? sorted.slice(0, Number(filterLimit)) : sorted;
+  }, [items, filterCategory, filterStatus, filterTag, searchText, maxAccuracy, filterLimit, progressMap, sortKey, skill, searchTrigger]);
 
   const toggleSelect = (id) => {
     setSelectedIds((prev) => prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]);
@@ -154,6 +156,7 @@ export default function FreeReview({ onBack, repo }) {
     setFilterTag('');
     setSearchText('');
     setMaxAccuracy('20');
+    setFilterLimit('20');
   };
 
   const current = queue[currentIndex];
@@ -706,6 +709,21 @@ export default function FreeReview({ onBack, repo }) {
                 <option value="new">追加順（新しい順）</option>
                 <option value="old">追加順（古い順）</option>
               </select>
+            </div>
+            <div className="filter-group">
+              <label className="filter-label" style={{ color: '#4f46e5', fontWeight: 700 }}>苦手な単語・フレーズ (表示数)</label>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input
+                  className="filter-input"
+                  type="number"
+                  min="1"
+                  placeholder="例: 20"
+                  value={filterLimit}
+                  onChange={(e) => setFilterLimit(e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <span style={{ color: '#6b7280', fontSize: 14 }}>件</span>
+              </div>
             </div>
           </div>
           <button className="filter-apply-btn" onClick={() => setSearchTrigger((prev) => prev + 1)}>
