@@ -107,11 +107,11 @@ export default function LearnPage({
 
           {showAnswer && isListening ? (
             <div style={{ margin: '8px 0' }}>
-              <h2 style={{ fontSize: '2rem', marginBottom: '0.5rem', color: '#1f2937' }}>{current.item.en}</h2>
-              <div style={{ fontSize: '1.2rem', color: '#4b5563' }}>{jaText}</div>
+              <h2 style={{ fontSize: '2rem', marginBottom: '0.5rem', color: '#1f2937', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{current.item.en}</h2>
+              <div style={{ fontSize: '1.2rem', color: '#4b5563', wordBreak: 'break-word' }}>{jaText}</div>
             </div>
           ) : (
-            <h2 style={{ margin: '8px 0' }}>{showAnswer ? answer : (isListening ? '音声を聴いてください' : question)}</h2>
+            <h2 style={{ margin: '8px 0', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{showAnswer ? answer : (isListening ? '音声を聴いてください' : question)}</h2>
           )}
 
           {isListening && (
@@ -130,14 +130,14 @@ export default function LearnPage({
               display: 'flex',
               justifyContent: 'space-between',
               gap: 12,
-              flexWrap: 'nowrap',
+              flexWrap: 'wrap',
               width: '100%',
             }}
           >
             <button
               onClick={() => handleGrade(true)}
               className="md-btn"
-              style={{ background: '#22c55e', color: '#fff', flex: 1, minWidth: '45%' }}
+              style={{ background: '#22c55e', color: '#fff', flex: '1 1 45%', minWidth: 120 }}
             >
               <Check size={16} style={{ marginRight: 6 }} />
               正解
@@ -145,7 +145,7 @@ export default function LearnPage({
             <button
               onClick={() => handleGrade(false)}
               className="md-btn danger"
-              style={{ flex: 1, minWidth: '45%' }}
+              style={{ flex: '1 1 45%', minWidth: 120 }}
             >
               <X size={16} style={{ marginRight: 6 }} />
               不正解
@@ -163,7 +163,9 @@ export default function LearnPage({
               border: '1px solid #000000',
               fontWeight: 600,
               padding: '10px 24px',
-              borderRadius: '10px'
+              borderRadius: '10px',
+              width: '100%',
+              maxWidth: 320,
             }}
             onClick={() => {
               if (window.confirm('学習を終了して結果を確認しますか？\n（ここまでのデータは保存されます）')) {
