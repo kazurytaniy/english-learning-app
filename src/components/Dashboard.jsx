@@ -39,7 +39,7 @@ const RepeatIcon = () => (
   </svg>
 );
 
-export default function Dashboard({ repo, onStartLearn, onNavigate }) {
+export default function Dashboard({ repo, onStartLearn, onStartReview, onNavigate }) {
   const [stats, setStats] = useState(null);
   const [weakRanking, setWeakRanking] = useState([]);
 

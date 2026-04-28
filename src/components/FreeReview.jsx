@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Check, X, Mic } from 'lucide-react';
 import { formatDateJst } from '../utils/date';
 
 const SKILLS = [
@@ -10,13 +9,12 @@ const SKILLS = [
 
 const CATEGORIES = ['単語', '慣用句', 'フレーズ'];
 
-// ステータスの色定義
 const STATUS_COLORS = {
   'まだまだ': { bg: '#9e9e9e', text: '#fff' },
   '読める': { bg: '#2196f3', text: '#fff' },
   '話せる': { bg: '#4caf50', text: '#fff' },
   '聞ける': { bg: '#ffc107', text: '#333' },
-  'マスター': { bg: 'linear-gradient(135deg, #d4a000 0%, #ffd700 50%, #d4a000 100%)', text: '#333' },
+  'マスター': { bg: 'linear-gradient(135deg, #ea580c 0%, #f59e0b 50%, #ea580c 100%)', text: '#fff' },
 };
 
 const getJaText = (item) => {
@@ -39,14 +37,10 @@ const getStatusStyle = (s) => {
 const formatDue = (s) => {
   if (!s) return '未設定';
   if (s.length === 10) return s;
-  try {
-    return formatDateJst(s);
-  } catch {
-    return s;
-  }
+  try { return formatDateJst(s); } catch { return s; }
 };
 
-export default function FreeReview({ onBack, repo }) {
+export default function FreeReview({ onBack, onStartReview, repo }) {
   const [items, setItems] = useState([]);
   const [tags, setTags] = useState([]);
   const [progressMap, setProgressMap] = useState({});
@@ -61,12 +55,6 @@ export default function FreeReview({ onBack, repo }) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [skill, setSkill] = useState('A');
   const [intervals, setIntervals] = useState([]);
-
-  const [isReviewing, setIsReviewing] = useState(false);
-  const [queue, setQueue] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [showAnswer, setShowAnswer] = useState(false);
-  const [results, setResults] = useState([]);
 
   useEffect(() => {
     const load = async () => {
@@ -108,46 +96,14 @@ export default function FreeReview({ onBack, repo }) {
     setSelectedIds((prev) => prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]);
   };
 
-  const selectAllFiltered = () => {
-    setSelectedIds(filteredItems.map((item) => item.id));
-  };
+  const selectAllFiltered = () => setSelectedIds(filteredItems.map((item) => item.id));
+  const clearSelection = () => setSelectedIds([]);
 
-  const clearSelection = () => {
-    setSelectedIds([]);
-  };
-
-  const startReview = () => {
+  const handleStartReview = () => {
     const ids = selectedIds.length > 0 ? selectedIds : filteredItems.map((i) => i.id);
     const selectedItems = items.filter((i) => ids.includes(i.id));
     if (selectedItems.length === 0) return;
-    const q = selectedItems.map((item) => ({ item, skill }));
-    setQueue(q);
-    setCurrentIndex(0);
-    setShowAnswer(false);
-    setResults([]);
-    setIsReviewing(true);
-  };
-
-  const stopReview = () => {
-    setIsReviewing(false);
-  };
-
-  const playAudio = (item) => {
-    if (!item?.en) return;
-    if (!('speechSynthesis' in window)) return;
-    const synth = window.speechSynthesis;
-    synth.cancel();
-    const utter = new SpeechSynthesisUtterance(item.en);
-    utter.lang = 'en-US';
-    synth.speak(utter);
-  };
-
-  const handleGrade = (isCorrect) => {
-    const current = queue[currentIndex];
-    if (!current) return;
-    setResults((prev) => [...prev, { ...current, correct: isCorrect }]);
-    setShowAnswer(false);
-    setCurrentIndex((prev) => prev + 1);
+    onStartReview(selectedItems, [skill]);
   };
 
   const resetFilters = () => {
@@ -155,183 +111,9 @@ export default function FreeReview({ onBack, repo }) {
     setFilterStatus('');
     setFilterTag('');
     setSearchText('');
-    setMaxAccuracy('20');
+    setMaxAccuracy('');
     setFilterLimit('20');
   };
-
-  const current = queue[currentIndex];
-  const isComplete = isReviewing && currentIndex >= queue.length;
-
-  if (isReviewing && isComplete) {
-    const correct = results.filter((r) => r.correct).length;
-    const wrong = results.length - correct;
-    const wrongItems = results.filter((r) => !r.correct).map((r) => r.item);
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4 word-page">
-        <div className="card" style={{ maxWidth: 980, width: '100%', textAlign: 'center', margin: '0 auto' }}>
-          <h2 style={{ marginTop: 0 }}>自由復習 完了</h2>
-          <div className="row" style={{ justifyContent: 'center' }}>
-            <span className="muted">正解: {correct}</span>
-            <span className="muted">不正解: {wrong}</span>
-          </div>
-          {wrongItems.length > 0 && (
-            <div style={{ marginTop: 12, textAlign: 'left' }}>
-              <div className="muted">間違えた単語</div>
-              <textarea
-                className="form-input"
-                rows={6}
-                readOnly
-                value={wrongItems.map((w) => `${w.en} / ${getJaText(w)}`).join('\n')}
-              />
-            </div>
-          )}
-          <div className="row" style={{ marginTop: 12 }}>
-            <button className="btn-back" onClick={stopReview}>戻る</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (isReviewing && current) {
-    const jaText = getJaText(current.item);
-
-    return (
-      <div className="min-h-screen flex items-center justify-center px-4 word-page" style={{ background: '#f9fafb' }}>
-        <div className="word-card" style={{ maxWidth: 600, width: '100%', margin: '0 auto', padding: '32px' }}>
-
-          {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
-            <span className="category-badge" style={{ fontSize: 14, padding: '6px 12px' }}>
-              {SKILLS.find((s) => s.id === current.skill)?.label}
-            </span>
-            <span style={{ color: '#6b7280', fontSize: 14, fontWeight: 500 }}>
-              {currentIndex + 1} / {queue.length}
-            </span>
-          </div>
-
-          {/* Card Content */}
-          <div
-            onClick={() => setShowAnswer(!showAnswer)}
-            style={{
-              cursor: 'pointer',
-              minHeight: 240,
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-              textAlign: 'center'
-            }}
-          >
-            {/* Question */}
-            <div style={{ marginBottom: showAnswer ? 24 : 0 }}>
-              {current.skill === 'A' && (
-                <div className="word-en" style={{ fontSize: 42 }}>{current.item.en}</div>
-              )}
-              {current.skill === 'B' && (
-                <div className="word-ja" style={{ fontSize: 28, color: '#1f2937', marginTop: 0 }}>{jaText || current.item.en}</div>
-              )}
-              {current.skill === 'C' && (
-                <button
-                  className="md-btn filled"
-                  onClick={(e) => { e.stopPropagation(); playAudio(current.item); }}
-                  style={{ borderRadius: '50%', width: 80, height: 80, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                >
-                  <Mic size={40} />
-                </button>
-              )}
-            </div>
-
-            {/* Answer */}
-            {showAnswer && (
-              <div style={{ animation: 'fadeIn 0.3s ease' }}>
-                {current.skill !== 'A' && (
-                  <div className="word-en" style={{ fontSize: current.skill === 'B' ? 42 : 32, marginBottom: 8 }}>
-                    {current.item.en}
-                  </div>
-                )}
-                {current.skill !== 'B' && (
-                  <div className="word-ja" style={{ fontSize: 18 }}>
-                    {jaText}
-                  </div>
-                )}
-                {/* Audio button for non-listening skills if answer is shown */}
-                {current.skill !== 'C' && (
-                  <div style={{ marginTop: 16 }}>
-                    <button
-                      className="icon-btn"
-                      onClick={(e) => { e.stopPropagation(); playAudio(current.item); }}
-                      style={{ background: '#f3f4f6', width: 40, height: 40, borderRadius: '50%', margin: '0 auto' }}
-                    >
-                      <Mic size={20} />
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {!showAnswer && (
-              <div style={{ marginTop: 32, color: '#9ca3af', fontSize: 13, fontWeight: 500 }}>
-                タップして答えを表示
-              </div>
-            )}
-          </div>
-
-          {/* Action Buttons */}
-          {showAnswer && (
-            <div style={{
-              display: 'flex',
-              gap: 16,
-              marginTop: 32,
-              paddingTop: 24,
-              borderTop: '1px solid #f3f4f6'
-            }}>
-              <button
-                onClick={() => handleGrade(true)}
-                className="md-btn"
-                style={{
-                  background: '#22c55e',
-                  color: '#fff',
-                  flex: 1,
-                  height: 48,
-                  fontSize: 16,
-                  borderRadius: 12,
-                  border: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8
-                }}
-              >
-                <Check size={20} />
-                正解
-              </button>
-              <button
-                onClick={() => handleGrade(false)}
-                className="md-btn"
-                style={{
-                  background: '#ef4444',
-                  color: '#fff',
-                  flex: 1,
-                  height: 48,
-                  fontSize: 16,
-                  borderRadius: 12,
-                  border: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8
-                }}
-              >
-                <X size={20} />
-                不正解
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex flex-col items-center gap-4 px-4 py-6 word-page">
@@ -357,13 +139,9 @@ export default function FreeReview({ onBack, repo }) {
           font-size: 13px;
           font-weight: 500;
           cursor: pointer;
-          transition: all 0.2s;
           border: 1px solid #e0e0e0;
           background: #fff;
           color: #6b7280;
-        }
-        .filter-reset-btn:hover {
-          background: #f3f4f6;
         }
         .filter-grid {
           display: grid;
@@ -371,9 +149,7 @@ export default function FreeReview({ onBack, repo }) {
           gap: 16px;
         }
         @media (max-width: 640px) {
-          .filter-grid {
-            grid-template-columns: 1fr;
-          }
+          .filter-grid { grid-template-columns: 1fr; }
         }
         .filter-group {
           display: flex;
@@ -406,14 +182,8 @@ export default function FreeReview({ onBack, repo }) {
           color: #fff;
           font-weight: 600;
           cursor: pointer;
-          transition: background 0.2s;
         }
-        .filter-apply-btn:hover {
-          background: #4338ca;
-        }
-        
-        /* 単語カード */
-        .word-card {
+        .word-card-item {
           background: #fff;
           border-radius: 16px;
           padding: 20px;
@@ -432,20 +202,14 @@ export default function FreeReview({ onBack, repo }) {
           accent-color: #4f46e5;
           flex-shrink: 0;
         }
-        .word-content {
-          flex: 1;
-        }
         .word-title-row {
           display: flex;
           align-items: center;
           gap: 10px;
           flex-wrap: wrap;
         }
-        .word-en {
-          font-size: 32px;
-          font-weight: 700;
-          color: #1f2937;
-        }
+        .word-en { font-size: 28px; font-weight: 700; color: #1f2937; }
+        .word-ja { font-size: 15px; color: #4b5563; margin-top: 6px; }
         .category-badge {
           padding: 4px 10px;
           border-radius: 6px;
@@ -454,151 +218,66 @@ export default function FreeReview({ onBack, repo }) {
           background: #f3f4f6;
           color: #6b7280;
         }
-        .word-ja {
-          font-size: 16px;
-          color: #4b5563;
-          margin-top: 8px;
+        .status-badge {
+          display: inline-block;
+          padding: 4px 10px;
+          border-radius: 8px;
+          font-size: 11px;
+          font-weight: 600;
         }
         .tag-display {
           display: inline-block;
-          padding: 4px 12px;
+          padding: 3px 10px;
           border-radius: 6px;
           font-size: 12px;
-          font-weight: 500;
           background: #e0f2fe;
           color: #0369a1;
           margin-right: 6px;
-          margin-top: 12px;
-        }
-        
-        /* ステータスバッジ */
-        .status-badge {
-          display: inline-block;
-          padding: 6px 14px;
-          border-radius: 8px;
-          font-size: 13px;
-          font-weight: 600;
-        }
-        
-        /* 統計セクション */
-        .stats-section {
-          margin-top: 16px;
-          padding-top: 16px;
-          border-top: 1px solid #f3f4f6;
-        }
-        .stats-row {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 12px;
-          margin-bottom: 10px;
-        }
-        @media (max-width: 480px) {
-          .stats-row {
-            grid-template-columns: 1fr;
-          }
-        }
-        .stat-item {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-        /* .skill-badge {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          padding: 5px 12px;
-          border-radius: 6px;
-          font-size: 12px;
-          font-weight: 600;
-          background: #e5e7eb;
-          color: #374151;
-          min-width: 70px;
-        }
-        .skill-badge.active {
-          background: #4f46e5;
-          color: #fff;
-        } */
-        .stat-text {
-          font-size: 13px;
-          color: #6b7280;
-        }
-        .stat-accuracy {
-          color: #6b7280;
-          font-weight: 600;
-        }
-
-        /* 次回復習 */
-        .due-row {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-          gap: 8px;
           margin-top: 8px;
         }
-        .due-item {
-          padding: 10px 12px;
-          border-radius: 10px;
-          background: #f9fafb;
-          border: 1px solid #f3f4f6;
+        .stats-section {
+          margin-top: 14px;
+          padding-top: 14px;
+          border-top: 1px solid #f3f4f6;
+          margin-left: 34px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+        .stats-skill-item {
           display: flex;
           align-items: center;
           gap: 8px;
-        }
-        .due-text {
           font-size: 13px;
-          color: #4b5563;
+          color: #6b7280;
+          flex: 1 1 140px;
         }
-        
-        /* スキル選択カード */
         .skill-card {
           background: #fff;
           border-radius: 16px;
           padding: 20px;
           box-shadow: 0 2px 12px rgba(0,0,0,0.08);
         }
-        .skill-label {
-          font-size: 13px;
-          font-weight: 500;
-          color: #6b7280;
-          margin-bottom: 10px;
-        }
-        .skill-buttons {
-          display: flex;
-          gap: 8px;
-          flex-wrap: wrap;
-          margin-bottom: 16px;
-        }
+        .skill-label { font-size: 13px; font-weight: 500; color: #6b7280; margin-bottom: 10px; }
+        .skill-buttons { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
         .skill-btn {
           padding: 10px 16px;
           border-radius: 10px;
           font-size: 13px;
           font-weight: 600;
           cursor: pointer;
-          transition: all 0.2s;
           border: 2px solid #e0e0e0;
           background: #fff;
           color: #333;
         }
-        .skill-btn:hover {
-          border-color: #4f46e5;
-          color: #4f46e5;
-        }
-        .skill-btn.active {
-          background: #4f46e5;
-          border-color: #4f46e5;
-          color: #fff;
-        }
-        .action-buttons {
-          display: flex;
-          gap: 8px;
-          flex-wrap: wrap;
-        }
+        .skill-btn.active { background: #4f46e5; border-color: #4f46e5; color: #fff; }
+        .action-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
         .action-btn {
           padding: 10px 16px;
           border-radius: 10px;
           font-size: 13px;
           font-weight: 600;
           cursor: pointer;
-          transition: all 0.2s;
           border: none;
         }
         .action-btn-outline {
@@ -606,37 +285,17 @@ export default function FreeReview({ onBack, repo }) {
           color: #4f46e5;
           border: 2px solid #e0e0e0;
         }
-        .action-btn-outline:hover {
-          border-color: #4f46e5;
-        }
-        .action-btn-primary {
-          background: #4f46e5;
-          color: #fff;
-        }
-        .action-btn-primary:hover {
-          background: #4338ca;
-        }
-        
-        .btn-ghost {
-          background: #ffffff;
-          color: #6b7280;
-          border: none;
-          padding: 12px 24px;
-          border-radius: 12px;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        .btn-ghost:hover {
-          background: #f3f4f6;
-        }
+        .action-btn-primary { background: #4f46e5; color: #fff; }
       `}</style>
 
       <div className="form-card" style={{ maxWidth: 980, width: '100%', margin: '0 auto' }}>
-        <h2 style={{ margin: '0 0 20px 0', fontSize: 20, fontWeight: 700 }}>復習</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>復習</h2>
+          <button className="btn-back" onClick={onBack}>戻る</button>
+        </div>
 
-        <div className="filter-card" style={{ maxWidth: 980, width: '100%', margin: '0 auto' }}>
+        {/* フィルター */}
+        <div className="filter-card" style={{ marginBottom: 16 }}>
           <div className="filter-title">
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -651,9 +310,7 @@ export default function FreeReview({ onBack, repo }) {
               <label className="filter-label">カテゴリ</label>
               <select className="filter-select" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
                 <option value="">すべて</option>
-                {CATEGORIES.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
+                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div className="filter-group">
@@ -671,9 +328,7 @@ export default function FreeReview({ onBack, repo }) {
               <label className="filter-label">タグ</label>
               <select className="filter-select" value={filterTag} onChange={(e) => setFilterTag(e.target.value)}>
                 <option value="">すべて</option>
-                {tags.map((tag) => (
-                  <option key={tag} value={tag}>{tag}</option>
-                ))}
+                {tags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}
               </select>
             </div>
             <div className="filter-group">
@@ -711,7 +366,7 @@ export default function FreeReview({ onBack, repo }) {
               </select>
             </div>
             <div className="filter-group">
-              <label className="filter-label" style={{ color: '#4f46e5', fontWeight: 700 }}>苦手な単語・フレーズ (表示数)</label>
+              <label className="filter-label" style={{ color: '#4f46e5', fontWeight: 700 }}>表示件数</label>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <input
                   className="filter-input"
@@ -727,11 +382,12 @@ export default function FreeReview({ onBack, repo }) {
             </div>
           </div>
           <button className="filter-apply-btn" onClick={() => setSearchTrigger((prev) => prev + 1)}>
-            検索
+            絞り込み
           </button>
         </div>
 
-        <div className="skill-card" style={{ maxWidth: 980, width: '100%', margin: '0 auto' }}>
+        {/* スキル選択・開始 */}
+        <div className="skill-card" style={{ marginBottom: 16 }}>
           <div className="skill-label">スキル選択</div>
           <div className="skill-buttons">
             {SKILLS.map((s) => (
@@ -747,30 +403,27 @@ export default function FreeReview({ onBack, repo }) {
           <div className="action-buttons">
             <button className="action-btn action-btn-outline" onClick={selectAllFiltered}>表示分を全選択</button>
             <button className="action-btn action-btn-outline" onClick={clearSelection}>選択解除</button>
-            <button className="action-btn action-btn-primary" onClick={startReview}>
+            <button className="action-btn action-btn-primary" onClick={handleStartReview}>
               {selectedIds.length > 0 ? `${selectedIds.length}件を復習開始` : '表示分を復習開始'}
             </button>
           </div>
         </div>
 
-        <div style={{ maxWidth: 980, width: '100%', display: 'flex', flexDirection: 'column', gap: 16, margin: '0 auto' }}>
+        {/* 単語リスト */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {filteredItems.map((item) => {
             const stats = progressMap[item.id] || {
-              total: { correct: 0, wrong: 0, attempts: 0, accuracy: 0 },
               skills: {
                 A: { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '' },
                 B: { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '' },
                 C: { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '' },
               }
             };
-            const skillA = stats.skills?.A || { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '' };
-            const skillB = stats.skills?.B || { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '' };
-            const skillC = stats.skills?.C || { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '' };
             const selected = selectedIds.includes(item.id);
             const statusStyle = getStatusStyle(item.status || 'まだまだ');
 
             return (
-              <div key={item.id} className="word-card">
+              <div key={item.id} className="word-card-item">
                 <div className="word-header">
                   <input
                     type="checkbox"
@@ -778,90 +431,43 @@ export default function FreeReview({ onBack, repo }) {
                     checked={selected}
                     onChange={() => toggleSelect(item.id)}
                   />
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="word-title-row">
                       <span className="word-en">{item.en}</span>
                       <span className="category-badge">{item.category || '単語'}</span>
                     </div>
                     <div className="word-ja">{getJaText(item)}</div>
+                    {Array.isArray(item.tags) && item.tags.length > 0 && (
+                      <div>
+                        {item.tags.map((tag) => <span key={tag} className="tag-display">{tag}</span>)}
+                      </div>
+                    )}
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
-                    <div className="action-icons">
-                    </div>
-                    <span className="status-badge" style={{ ...statusStyle, padding: '4px 10px', fontSize: '11px' }}>
-                      {item.status || 'まだまだ'}
-                    </span>
-                  </div>
+                  <span className="status-badge" style={{ ...statusStyle, flexShrink: 0 }}>
+                    {item.status || 'まだまだ'}
+                  </span>
                 </div>
-                {Array.isArray(item.tags) && item.tags.length > 0 && (
-                  <div style={{ marginLeft: 34 }}>
-                    {item.tags.map((tag) => (
-                      <span key={tag} className="tag-display">{tag}</span>
-                    ))}
-                  </div>
-                )}
-
-                <div className="stats-section" style={{ marginLeft: 34 }}>
-                  <div className="stats-unified-grid">
-                    {/* 英→日 */}
-                    <div className="stats-unified-item">
-                      <div className="stats-unified-row">
-                        <span className="skill-badge skill-badge-a">英→日</span>
-                        <span className="stats-text">
-                          {skillA.correct}/{skillA.attempts}
-                          <span className="stats-sub">({skillA.accuracy}%)</span>
-                        </span>
+                <div className="stats-section">
+                  {SKILLS.map((s) => {
+                    const sk = stats.skills[s.id] || { correct: 0, attempts: 0, accuracy: 0, next_due: '' };
+                    return (
+                      <div key={s.id} className="stats-skill-item">
+                        <span className={`skill-badge skill-badge-${s.id.toLowerCase()}`}>{s.label}</span>
+                        <span>{sk.correct}/{sk.attempts}回 ({sk.accuracy}%)</span>
+                        <span style={{ fontSize: 11, color: '#9ca3af' }}>次回: {formatDue(sk.next_due)}</span>
                       </div>
-                      <div className="stats-unified-row due-row-unified">
-                        <span>次回: {formatDue(skillA.next_due)}</span>
-                        {skillA.stage !== undefined && intervals[skillA.stage] !== undefined && <span>{intervals[skillA.stage]}日</span>}
-                      </div>
-                    </div>
-
-                    {/* 日→英 */}
-                    <div className="stats-unified-item">
-                      <div className="stats-unified-row">
-                        <span className="skill-badge skill-badge-b">日→英</span>
-                        <span className="stats-text">
-                          {skillB.correct}/{skillB.attempts}
-                          <span className="stats-sub">({skillB.accuracy}%)</span>
-                        </span>
-                      </div>
-                      <div className="stats-unified-row due-row-unified">
-                        <span>次回: {formatDue(skillB.next_due)}</span>
-                        {skillB.stage !== undefined && intervals[skillB.stage] !== undefined && <span>{intervals[skillB.stage]}日</span>}
-                      </div>
-                    </div>
-
-                    {/* Listening */}
-                    <div className="stats-unified-item">
-                      <div className="stats-unified-row">
-                        <span className="skill-badge skill-badge-c">Listening</span>
-                        <span className="stats-text">
-                          {skillC.correct}/{skillC.attempts}
-                          <span className="stats-sub">({skillC.accuracy}%)</span>
-                        </span>
-                      </div>
-                      <div className="stats-unified-row due-row-unified">
-                        <span>次回: {formatDue(skillC.next_due)}</span>
-                        {skillC.stage !== undefined && intervals[skillC.stage] !== undefined && <span>{intervals[skillC.stage]}日</span>}
-                      </div>
-                    </div>
-                  </div>
-
+                    );
+                  })}
                 </div>
               </div>
             );
           })}
           {filteredItems.length === 0 && (
-            <div className="word-card" style={{ textAlign: 'center', color: '#9ca3af' }}>
+            <div className="word-card-item" style={{ textAlign: 'center', color: '#9ca3af' }}>
               条件に一致する単語がありません
             </div>
           )}
         </div>
-      </div>
-      <div style={{ marginTop: 12 }}>
-        <button className="btn-back" onClick={onBack}>戻る</button>
       </div>
     </div>
   );
@@ -873,7 +479,6 @@ function buildProgressMap(progressList) {
     const id = prog.item_id;
     if (!map[id]) {
       map[id] = {
-        total: { correct: 0, wrong: 0, attempts: 0, accuracy: 0 },
         skills: {
           A: { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '', stage: 0 },
           B: { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '', stage: 0 },
@@ -892,17 +497,10 @@ function buildProgressMap(progressList) {
       entry.skills[skill].next_due = prog.next_due || entry.skills[skill].next_due || '';
       entry.skills[skill].stage = prog.stage !== undefined ? prog.stage : entry.skills[skill].stage;
     }
-    entry.total.correct += correct;
-    entry.total.wrong += wrong;
-    entry.total.attempts += correct + wrong;
   }
   for (const id of Object.keys(map)) {
-    const entry = map[id];
-    entry.total.accuracy = entry.total.attempts
-      ? Math.round((entry.total.correct / entry.total.attempts) * 100)
-      : 0;
     for (const skill of ['A', 'B', 'C']) {
-      const s = entry.skills[skill];
+      const s = map[id].skills[skill];
       s.accuracy = s.attempts ? Math.round((s.correct / s.attempts) * 100) : 0;
     }
   }

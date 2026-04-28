@@ -191,7 +191,7 @@ function App() {
         />
       );
     }
-    if (page === PAGES.FREE) return <FreeReview repo={repo} onBack={() => setPage(PAGES.DASH)} />;
+    if (page === PAGES.FREE) return <FreeReview repo={repo} onStartReview={startItemsReview} onBack={() => setPage(PAGES.DASH)} />;
     if (page === PAGES.WORDS) return <WordList repo={repo} ready={ready} onBack={() => setPage(PAGES.DASH)} />;
     if (page === PAGES.SETTINGS) return <Settings repo={repo} onBack={() => setPage(PAGES.DASH)} />;
     if (page === PAGES.DATA) return <DataManagement repo={repo} onBack={() => setPage(PAGES.DASH)} />;
