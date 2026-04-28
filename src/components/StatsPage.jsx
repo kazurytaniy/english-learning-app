@@ -20,7 +20,7 @@ const STATUS_COLORS = {
   '読める': '#2196f3',
   '話せる': '#4caf50',
   '聞ける': '#ffc107',
-  'マスター': '#ffd700',
+  'マスター': '#ea580c',
 };
 
 const toJstMidnight = (date) => {

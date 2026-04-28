@@ -37,9 +37,10 @@ export default function LearnModeSelect({ repo, onStart, onBack }) {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: 8,
     padding: '12px 0',
-    borderBottom: '1px solid #f3f4f6'
+    borderBottom: '1px solid #f3f4f6',
+    minWidth: 0,
   };
 
   const labelStyle = {
@@ -49,7 +50,7 @@ export default function LearnModeSelect({ repo, onStart, onBack }) {
   };
 
   const countStyle = {
-    flex: 1,
+    flex: '0 0 64px',
     textAlign: 'center',
     fontSize: 14,
     color: '#6b7280'
@@ -86,10 +87,6 @@ export default function LearnModeSelect({ repo, onStart, onBack }) {
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 2 }}>
         <span style={numberStyle}>{units}</span>
         <span style={smallLabelStyle}>コマ</span>
-        <span style={{ ...smallLabelStyle, whiteSpace: 'nowrap' }}>(1コマ30件)、</span>
-        <span style={smallLabelStyle}>総件数</span>
-        <span style={numberStyle}>{value}</span>
-        <span style={smallLabelStyle}>件</span>
       </div>
     );
   };
@@ -113,7 +110,7 @@ export default function LearnModeSelect({ repo, onStart, onBack }) {
         </div>
 
         <div className="form-group">
-          <div className="form-label">学習モードを選択</div>
+          <div className="form-label">学習モードを選択 <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 400 }}>（1コマ最大30件）</span></div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {/* 英→日 */}
             <div style={rowStyle}>
