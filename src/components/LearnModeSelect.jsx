@@ -81,12 +81,17 @@ export default function LearnModeSelect({ repo, onStart, onBack }) {
     marginRight: 4
   };
 
-  const RenderCount = ({ value }) => (
-    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 2 }}>
-      <span style={numberStyle}>{value}</span>
-      <span style={smallLabelStyle}>件</span>
-    </div>
-  );
+  const RenderCount = ({ value }) => {
+    const units = Math.ceil(value / 30);
+    return (
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 4 }}>
+        <span style={numberStyle}>{units}</span>
+        <span style={smallLabelStyle}>コマ</span>
+        <span style={numberStyle}>{value}</span>
+        <span style={smallLabelStyle}>件</span>
+      </div>
+    );
+  };
 
   const formatDaysAgo = (ts) => {
     if (!ts) return '未学習';
@@ -166,6 +171,10 @@ export default function LearnModeSelect({ repo, onStart, onBack }) {
               </button>
             </div>
           </div>
+        </div>
+
+        <div style={{ marginTop: 12, fontSize: 11, color: '#9ca3af', textAlign: 'right' }}>
+          ※ 1コマ最大30件
         </div>
 
         {startError && (
