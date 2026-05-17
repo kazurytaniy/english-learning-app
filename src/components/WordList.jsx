@@ -1167,13 +1167,14 @@ export default function WordList({ repo, ready, onBack }) {
 
         <div className="form-group">
           <label className="form-label">学習終了設定</label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#374151' }}>
+          <label style={{ display: 'grid', gridTemplateColumns: '18px minmax(0, 1fr)', alignItems: 'center', gap: 10, width: '100%', fontSize: 14, color: '#374151', lineHeight: 1.5 }}>
             <input
               type="checkbox"
               checked={manualRetired}
               onChange={(e) => setManualRetired(e.target.checked)}
+              style={{ width: 18, height: 18, margin: 0 }}
             />
-            この単語を学習終了にする
+            <span style={{ minWidth: 0, wordBreak: 'keep-all', overflowWrap: 'break-word' }}>この単語を学習終了にする</span>
           </label>
           <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>
             ONにすると通常学習には出ず、設定日数後に再開確認待ちになります。
