@@ -97,6 +97,9 @@ export default function WordList({ repo, ready, onBack }) {
   const [editingId, setEditingId] = useState(null);
   const [statsByItem, setStatsByItem] = useState({});
   const [intervals, setIntervals] = useState([]);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [expandedItemIds, setExpandedItemIds] = useState(new Set());
 
   // フィルター
   const [filterCategory, setFilterCategory] = useState('');
@@ -135,6 +138,14 @@ export default function WordList({ repo, ready, onBack }) {
     setCategory(CATEGORIES[0]);
     setSelectedTags([]);
     setEditingId(null);
+  };
+
+  const openNewForm = () => {
+    resetForm();
+    setIsFormOpen(true);
+    if (topRef.current?.scrollIntoView) {
+      topRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   };
 
   const addOrUpdate = async () => {
@@ -188,10 +199,12 @@ export default function WordList({ repo, ready, onBack }) {
     alert(`単語を${actionText}しました。`);
 
     resetForm();
+    setIsFormOpen(false);
     await load();
   };
 
   const startEdit = (item) => {
+    setIsFormOpen(true);
     setEditingId(item.id);
     setEn(item.en || '');
     if (item.jaList && Array.isArray(item.jaList)) {
@@ -360,6 +373,18 @@ export default function WordList({ repo, ready, onBack }) {
     await load();
   };
 
+  const toggleItemExpanded = (itemId) => {
+    setExpandedItemIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
+  };
+
   if (!ready) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center">
@@ -376,6 +401,62 @@ export default function WordList({ repo, ready, onBack }) {
           border-radius: 16px;
           padding: 24px;
           box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        .page-actions {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+          max-width: 980px;
+          width: 100%;
+          margin: 0 auto;
+        }
+        .page-actions-title {
+          font-size: 20px;
+          font-weight: 700;
+          color: #1f2937;
+        }
+        .toolbar-actions {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+        }
+        .section-toggle-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          min-height: 40px;
+          white-space: nowrap;
+        }
+        .form-action-row {
+          display: flex;
+          gap: 12px;
+          margin-top: 20px;
+        }
+        @media (max-width: 640px) {
+          .page-actions {
+            align-items: stretch;
+            flex-direction: column;
+          }
+          .toolbar-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            width: 100%;
+          }
+          .section-toggle-btn {
+            width: 100%;
+          }
+          .form-card {
+            padding: 18px;
+          }
+          .form-action-row {
+            flex-direction: column;
+          }
+          .form-action-row .btn {
+            width: 100%;
+          }
         }
         .form-group {
           margin-bottom: 16px;
@@ -628,6 +709,19 @@ export default function WordList({ repo, ready, onBack }) {
           color: #374151;
           margin-bottom: 16px;
         }
+        .filter-title-main {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          min-width: 0;
+        }
+        .filter-title-actions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+        }
         .filter-reset-btn {
           padding: 6px 14px;
           border-radius: 8px;
@@ -807,6 +901,26 @@ export default function WordList({ repo, ready, onBack }) {
           border-radius: 16px;
           padding: 20px;
           box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        .word-card-actions-row {
+          display: flex;
+          justify-content: flex-end;
+          gap: 8px;
+          margin-top: 12px;
+          border-top: 1px solid #f3f4f6;
+          padding-top: 12px;
+        }
+        @media (max-width: 640px) {
+          .word-header {
+            align-items: flex-start;
+            gap: 10px;
+          }
+          .word-card-actions-row {
+            justify-content: stretch;
+          }
+          .word-card-actions-row .md-btn {
+            flex: 1;
+          }
         }
         .word-header {
           display: flex;
@@ -1028,8 +1142,29 @@ export default function WordList({ repo, ready, onBack }) {
         </div>
       </div>
 
+      <div className="page-actions">
+        <div>
+          <div className="page-actions-title">単語帳</div>
+          <div className="muted" style={{ fontSize: 13 }}>{filteredItems.length} / {items.length}件を表示</div>
+        </div>
+        <div className="toolbar-actions">
+          <button className="btn btn-primary section-toggle-btn" onClick={openNewForm}>
+            <PlusIcon /> 単語を追加
+          </button>
+          <button className="btn btn-outline section-toggle-btn" onClick={() => setIsFilterOpen((prev) => !prev)}>
+            {isFilterOpen ? 'フィルターを閉じる' : 'フィルター'}
+          </button>
+        </div>
+      </div>
+
+      {isFormOpen && (
       <div className="form-card" style={{ maxWidth: 980, width: '100%', margin: '0 auto' }}>
-        <h2 style={{ margin: '0 0 20px 0', fontSize: 20, fontWeight: 700 }}>単語管理</h2>
+        <div className="row row-between row-center" style={{ marginBottom: 20 }}>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{editingId ? '単語を編集' : '単語を追加'}</h2>
+          <button className="btn btn-ghost" onClick={() => { resetForm(); setIsFormOpen(false); }}>
+            閉じる
+          </button>
+        </div>
 
         <div className="form-group">
           <label className="form-label">English</label>
@@ -1181,10 +1316,10 @@ export default function WordList({ repo, ready, onBack }) {
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
+        <div className="form-action-row">
           {editingId && (
             <>
-              <button className="btn btn-outline" style={{ flex: 1 }} onClick={resetForm}>
+              <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => { resetForm(); setIsFormOpen(false); }}>
                 キャンセル
               </button>
               <button
@@ -1206,28 +1341,35 @@ export default function WordList({ repo, ready, onBack }) {
           </button>
         </div>
       </div>
+      )}
 
+      {isFilterOpen && (
       <div className="filter-card" style={{ maxWidth: 980, width: '100%', margin: '0 auto' }}>
         <div className="filter-title">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="filter-title-main">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
             </svg>
             フィルター
           </div>
-          <button
-            className="filter-reset-btn"
-            onClick={() => {
-              setFilterCategory('');
-              setFilterStatus('');
-              setFilterLearningState('');
-              setFilterTag('');
-              setMaxAccuracy('20');
-              setFilterText('');
-            }}
-          >
-            リセット
-          </button>
+          <div className="filter-title-actions">
+            <button
+              className="filter-reset-btn"
+              onClick={() => {
+                setFilterCategory('');
+                setFilterStatus('');
+                setFilterLearningState('');
+                setFilterTag('');
+                setMaxAccuracy('20');
+                setFilterText('');
+              }}
+            >
+              リセット
+            </button>
+            <button className="filter-reset-btn" onClick={() => setIsFilterOpen(false)}>
+              閉じる
+            </button>
+          </div>
         </div>
         <div className="filter-grid">
           <div className="filter-group">
@@ -1308,6 +1450,7 @@ export default function WordList({ repo, ready, onBack }) {
           検索
         </button>
       </div>
+      )}
 
       <div style={{ maxWidth: 980, width: '100%', display: 'flex', flexDirection: 'column', gap: 16, margin: '0 auto' }}>
         {searchMatchSummary && (
@@ -1329,6 +1472,7 @@ export default function WordList({ repo, ready, onBack }) {
           const learningState = getLearningState(item);
           const canRestart = learningState === 'retired' || learningState === 'restart_pending';
           const canCancelRestart = learningState === 'restart_reviewing';
+          const isExpanded = expandedItemIds.has(item.id);
 
           return (
             <div key={item.id} className="word-card">
@@ -1376,32 +1520,40 @@ export default function WordList({ repo, ready, onBack }) {
                 </div>
               )}
 
-              {Array.isArray(item.tags) && item.tags.length > 0 && (
-                <div>
-                  {item.tags.map((tag) => (
-                    <span key={tag} className="tag-display">{tag}</span>
-                  ))}
-                </div>
-              )}
+              <div className="word-card-actions-row">
+                <button className="md-btn" onClick={() => toggleItemExpanded(item.id)}>
+                  {isExpanded ? '詳細を閉じる' : '詳細'}
+                </button>
+              </div>
 
-              {(item.example || item.note) && (
-                <div className="detail-section">
-                  {item.example && (
-                    <div style={{ marginBottom: item.note ? 8 : 0 }}>
-                      <div className="detail-label">例文</div>
-                      <div className="detail-text">{item.example}</div>
-                    </div>
-                  )}
-                  {item.note && (
-                    <div>
-                      <div className="detail-label">メモ</div>
-                      <div className="detail-text">{item.note}</div>
-                    </div>
-                  )}
-                </div>
-              )}
+              {isExpanded && (
+              <>
+                {Array.isArray(item.tags) && item.tags.length > 0 && (
+                  <div className="detail-section">
+                    {item.tags.map((tag) => (
+                      <span key={tag} className="tag-display">{tag}</span>
+                    ))}
+                  </div>
+                )}
 
-              <div className="stats-section">
+                {(item.example || item.note) && (
+                  <div className="detail-section">
+                    {item.example && (
+                      <div style={{ marginBottom: item.note ? 8 : 0 }}>
+                        <div className="detail-label">例文</div>
+                        <div className="detail-text">{item.example}</div>
+                      </div>
+                    )}
+                    {item.note && (
+                      <div>
+                        <div className="detail-label">メモ</div>
+                        <div className="detail-text">{item.note}</div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="stats-section">
                 <div className="stats-unified-grid">
                   {/* 英→日 */}
                   <div className="stats-unified-item">
@@ -1450,6 +1602,8 @@ export default function WordList({ repo, ready, onBack }) {
 
                 </div>
               </div>
+              </>
+              )}
             </div>
           );
         })}
