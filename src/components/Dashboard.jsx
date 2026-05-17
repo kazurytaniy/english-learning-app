@@ -410,13 +410,13 @@ export default function Dashboard({ repo, onStartLearn, onStartReview, onRestart
           </div>
           <div className="weak-ranking-list">
             {weakRanking.map((item, idx) => (
-              <div key={item.id} className="weak-ranking-item">
+              <div key={`${item.id}-${item.reviewSkill || 'A'}`} className="weak-ranking-item">
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                   <span style={{ color: '#ef4444', fontWeight: 800, fontSize: 13 }}>{idx + 1}</span>
                   <span className="weak-ranking-word">{item.en}</span>
                 </div>
                 <div className="weak-ranking-meta">
-                  不正解: {item.wrong_count}回
+                  {item.skillLabel || '英→日'}: 不正解 {item.wrong_count}回
                 </div>
               </div>
             ))}

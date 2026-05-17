@@ -801,21 +801,24 @@ export default function StatsPage({ repo, onStartReview, onBack }) {
                   <tr>
                     <th style={{ width: 36 }}>#</th>
                     <th>単語</th>
+                    <th style={{ width: 110 }}>苦手スキル</th>
                     <th style={{ width: 130 }}>不正解 / 正解率</th>
-                    <th style={{ width: 140 }}>スキル別不正解</th>
                   </tr>
                 </thead>
                 <tbody>
                   {weakRanking.map((item, idx) => {
-                    const total = (item.wrong_count || 0) + (item.correct_count || 0);
-                    const acc = total > 0 ? Math.round((item.correct_count / total) * 100) : 0;
+                    const total = item.attempts || ((item.wrong_count || 0) + (item.correct_count || 0));
+                    const acc = item.accuracy ?? (total > 0 ? Math.round((item.correct_count / total) * 100) : 0);
                     const accColor = acc > 70 ? '#2196f3' : acc >= 50 ? '#4caf50' : acc >= 33 ? '#ffc107' : '#ef4444';
                     return (
-                      <tr key={item.id}>
+                      <tr key={`${item.id}-${item.reviewSkill || 'A'}`}>
                         <td style={{ fontWeight: 700, color: idx < 3 ? '#ef4444' : '#6b7280', textAlign: 'center' }}>{idx + 1}</td>
                         <td>
                           <div style={{ fontWeight: 700, color: '#111827' }}>{item.en}</div>
                           <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>{Array.isArray(item.ja) ? item.ja.join(' / ') : item.ja}</div>
+                        </td>
+                        <td>
+                          <span className={`skill-tiny-badge warn`}>{item.skillLabel || '英→日'}</span>
                         </td>
                         <td>
                           <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
@@ -826,13 +829,6 @@ export default function StatsPage({ repo, onStartReview, onBack }) {
                             <div className="acc-bar-fill" style={{ width: `${acc}%`, background: accColor }} />
                           </div>
                           <div style={{ fontSize: 11, color: accColor, fontWeight: 600, marginTop: 2 }}>正解率 {acc}%</div>
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-                            <span className={`skill-tiny-badge ${item.skills.A > 0 ? 'warn' : ''}`}>英→日: {item.skills.A}</span>
-                            <span className={`skill-tiny-badge ${item.skills.B > 0 ? 'warn' : ''}`}>日→英: {item.skills.B}</span>
-                            <span className={`skill-tiny-badge ${item.skills.C > 0 ? 'warn' : ''}`}>List: {item.skills.C}</span>
-                          </div>
                         </td>
                       </tr>
                     );

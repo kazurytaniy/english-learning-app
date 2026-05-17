@@ -90,7 +90,10 @@ function App() {
     const latestById = new Map(latestItems.map((item) => [item.id, item]));
     for (const originalItem of items) {
       const item = latestById.get(originalItem.id) || originalItem;
-      for (const s of skills) {
+      const reviewSkills = originalItem.reviewSkill || originalItem.review_skill
+        ? [originalItem.reviewSkill || originalItem.review_skill]
+        : skills;
+      for (const s of reviewSkills) {
         let prog = await repo.getProgress(item.id, s);
         if (!prog) {
           prog = {

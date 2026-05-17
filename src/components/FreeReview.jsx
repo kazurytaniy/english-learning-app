@@ -6,6 +6,7 @@ const SKILLS = [
   { id: 'B', label: '日→英' },
   { id: 'C', label: 'Listening' },
 ];
+const SKILL_LABELS = { A: '英→日', B: '日→英', C: 'Listening' };
 
 const CATEGORIES = ['単語', '慣用句', 'フレーズ'];
 
@@ -92,6 +93,18 @@ export default function FreeReview({ onBack, onStartReview, repo }) {
     return filterLimit ? sorted.slice(0, Number(filterLimit)) : sorted;
   }, [items, filterCategory, filterStatus, filterTag, searchText, maxAccuracy, filterLimit, progressMap, sortKey, skill, searchTrigger]);
 
+  const recommendedEntries = useMemo(() => {
+    return buildReviewEntries(items, progressMap).slice(0, 10);
+  }, [items, progressMap]);
+
+  const skillRecommendations = useMemo(() => {
+    const entries = buildReviewEntries(items, progressMap);
+    return SKILLS.map((s) => ({
+      ...s,
+      entries: entries.filter((entry) => entry.reviewSkill === s.id).slice(0, 10),
+    }));
+  }, [items, progressMap]);
+
   const toggleSelect = (id) => {
     setSelectedIds((prev) => prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]);
   };
@@ -104,6 +117,11 @@ export default function FreeReview({ onBack, onStartReview, repo }) {
     const selectedItems = items.filter((i) => ids.includes(i.id));
     if (selectedItems.length === 0) return;
     onStartReview(selectedItems, [skill]);
+  };
+
+  const startRecommendedReview = (entries) => {
+    if (!entries || entries.length === 0) return;
+    onStartReview(entries);
   };
 
   const resetFilters = () => {
@@ -286,12 +304,52 @@ export default function FreeReview({ onBack, onStartReview, repo }) {
           border: 2px solid #e0e0e0;
         }
         .action-btn-primary { background: #4f46e5; color: #fff; }
+        .recommend-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+          gap: 10px;
+          margin-bottom: 16px;
+        }
+        .recommend-btn {
+          border: 1px solid #fee2e2;
+          background: #fff7ed;
+          color: #9a3412;
+          border-radius: 12px;
+          padding: 14px;
+          text-align: left;
+          cursor: pointer;
+        }
+        .recommend-title {
+          font-size: 14px;
+          font-weight: 800;
+          margin-bottom: 4px;
+        }
+        .recommend-meta {
+          font-size: 12px;
+          color: #9ca3af;
+        }
       `}</style>
 
       <div className="form-card" style={{ maxWidth: 980, width: '100%', margin: '0 auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>復習</h2>
           <button className="btn-back" onClick={onBack}>戻る</button>
+        </div>
+
+        <div className="skill-card" style={{ marginBottom: 16 }}>
+          <div className="skill-label">おすすめ復習</div>
+          <div className="recommend-grid">
+            <button className="recommend-btn" onClick={() => startRecommendedReview(recommendedEntries)}>
+              <div className="recommend-title">おすすめ10問</div>
+              <div className="recommend-meta">技能別の不正解率が高い順</div>
+            </button>
+            {skillRecommendations.map((s) => (
+              <button key={s.id} className="recommend-btn" onClick={() => startRecommendedReview(s.entries)} disabled={s.entries.length === 0}>
+                <div className="recommend-title">{s.label} 苦手</div>
+                <div className="recommend-meta">{s.entries.length}件</div>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* フィルター */}
@@ -519,4 +577,32 @@ function sortItems(list, progressMap, sortKey, skill) {
     items.sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
   }
   return items;
+}
+
+function buildReviewEntries(items, progressMap) {
+  const entries = [];
+  for (const item of items) {
+    const state = item.restart_reviewing ? 'restart_reviewing' : (item.learning_state || 'active');
+    if (state === 'retired' || state === 'restart_pending') continue;
+    for (const skill of ['A', 'B', 'C']) {
+      const stat = progressMap[item.id]?.skills?.[skill];
+      if (!stat) continue;
+      const attempts = stat.attempts || 0;
+      if (attempts === 0) continue;
+      const wrong = stat.wrong || 0;
+      const accuracy = stat.accuracy ?? 0;
+      const score = wrong * 4 + (100 - accuracy) + (stat.stage === 0 && wrong > 0 ? 10 : 0);
+      entries.push({
+        ...item,
+        reviewSkill: skill,
+        skillLabel: SKILL_LABELS[skill],
+        wrong_count: wrong,
+        correct_count: stat.correct || 0,
+        attempts,
+        accuracy,
+        weak_score: score,
+      });
+    }
+  }
+  return entries.sort((a, b) => b.weak_score - a.weak_score || b.wrong_count - a.wrong_count || a.accuracy - b.accuracy);
 }

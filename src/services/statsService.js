@@ -2,6 +2,7 @@ import { countTodayQueue } from './scheduleService';
 import { formatDateJst } from '../utils/date';
 
 const todayStr = () => formatDateJst(new Date());
+const SKILL_LABELS = { A: '英→日', B: '日→英', C: 'Listening' };
 
 export async function computeStats(repo) {
   const items = await repo.listItems();
@@ -62,29 +63,33 @@ export async function getWeakRanking(repo, limit = 20) {
   const items = await repo.listItems();
   const progresses = await repo.listProgress();
 
-  const itemMap = {};
-  items.forEach((item) => {
-    itemMap[item.id] = {
-      ...item,
-      wrong_count: 0,
-      correct_count: 0,
-      skills: { A: 0, B: 0, C: 0 }
-    };
-  });
-
-  progresses.forEach((p) => {
-    if (itemMap[p.item_id]) {
+  const itemMap = new Map(items.map((item) => [item.id, item]));
+  const ranking = progresses
+    .map((p) => {
+      const item = itemMap.get(p.item_id);
+      if (!item) return null;
+      const state = item.restart_reviewing ? 'restart_reviewing' : (item.learning_state || 'active');
+      if (state === 'retired' || state === 'restart_pending') return null;
       const wrong = p.wrong_count || 0;
       const correct = p.correct_count || 0;
-      itemMap[p.item_id].wrong_count += wrong;
-      itemMap[p.item_id].correct_count += correct;
-      itemMap[p.item_id].skills[p.skill] = wrong;
-    }
-  });
-
-  const ranking = Object.values(itemMap)
-    .filter((item) => item.wrong_count > 0 || item.correct_count > 0)
-    .sort((a, b) => b.wrong_count - a.wrong_count || a.correct_count - b.correct_count)
+      const attempts = wrong + correct;
+      if (attempts === 0) return null;
+      const accuracy = Math.round((correct / attempts) * 100);
+      const score = wrong * 4 + (100 - accuracy) + (p.stage === 0 && wrong > 0 ? 10 : 0);
+      return {
+        ...item,
+        reviewSkill: p.skill || 'A',
+        skillLabel: SKILL_LABELS[p.skill] || '英→日',
+        wrong_count: wrong,
+        correct_count: correct,
+        attempts,
+        accuracy,
+        weak_score: score,
+        progress: p,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.weak_score - a.weak_score || b.wrong_count - a.wrong_count || a.accuracy - b.accuracy)
     .slice(0, limit);
 
   return ranking;
