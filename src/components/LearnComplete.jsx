@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Copy, Check } from 'lucide-react';
 
 export default function LearnComplete({ summary, onBack, onRetryWrong, onRetireItems }) {
   const [copied, setCopied] = useState(false);
   const [retired, setRetired] = useState(false);
+  const [selectedRetireIds, setSelectedRetireIds] = useState(new Set());
   const textSimple = useMemo(() => {
     if (!summary?.wrongAnswers || summary.wrongAnswers.length === 0) {
       return '';
@@ -33,6 +34,11 @@ export default function LearnComplete({ summary, onBack, onRetryWrong, onRetireI
     return sections.join('\n\n' + '='.repeat(20) + '\n\n');
   }, [summary]);
 
+  useEffect(() => {
+    setSelectedRetireIds(new Set((summary?.retirementCandidates || []).map((item) => item.id)));
+    setRetired(false);
+  }, [summary]);
+
   if (!summary) return null;
 
   const copyText = async () => {
@@ -47,10 +53,31 @@ export default function LearnComplete({ summary, onBack, onRetryWrong, onRetireI
 
   const handleRetire = async () => {
     const candidates = summary?.retirementCandidates || [];
-    if (candidates.length === 0 || !onRetireItems) return;
-    if (!window.confirm(`${candidates.length}件の単語を学習終了にしますか？\n学習終了中の単語は通常学習に出ず、180日後に再開確認されます。`)) return;
-    await onRetireItems(candidates);
+    const selected = candidates.filter((item) => selectedRetireIds.has(item.id));
+    if (selected.length === 0 || !onRetireItems) return;
+    if (!window.confirm(`${selected.length}件の単語を学習終了にしますか？\n学習終了中の単語は通常学習に出ず、180日後に再開確認されます。`)) return;
+    await onRetireItems(selected);
     setRetired(true);
+  };
+
+  const toggleRetireCandidate = (itemId) => {
+    setSelectedRetireIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
+  };
+
+  const selectAllRetireCandidates = () => {
+    setSelectedRetireIds(new Set((summary?.retirementCandidates || []).map((item) => item.id)));
+  };
+
+  const clearRetireCandidates = () => {
+    setSelectedRetireIds(new Set());
   };
 
   return (
@@ -61,16 +88,27 @@ export default function LearnComplete({ summary, onBack, onRetryWrong, onRetireI
 
         {summary.retirementCandidates?.length > 0 && !retired && (
           <div className="word-card" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', marginBottom: 12 }}>
-            <div className="muted" style={{ marginBottom: 8 }}>学習終了できる単語 ({summary.retirementCandidates.length}件)</div>
+            <div className="row" style={{ alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+              <div className="muted">学習終了できる単語 ({selectedRetireIds.size} / {summary.retirementCandidates.length}件)</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="md-btn" onClick={selectAllRetireCandidates}>全選択</button>
+                <button className="md-btn" onClick={clearRetireCandidates}>解除</button>
+              </div>
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 180, overflow: 'auto' }}>
               {summary.retirementCandidates.map((item) => (
-                <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 14 }}>
+                <label key={item.id} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: 10, fontSize: 14 }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedRetireIds.has(item.id)}
+                    onChange={() => toggleRetireCandidate(item.id)}
+                  />
                   <strong style={{ wordBreak: 'break-word' }}>{item.en}</strong>
                   <span className="muted" style={{ wordBreak: 'break-word' }}>{item.ja || ''}</span>
-                </div>
+                </label>
               ))}
             </div>
-            <button className="md-btn primary" onClick={handleRetire} style={{ marginTop: 10 }}>
+            <button className="md-btn primary" onClick={handleRetire} disabled={selectedRetireIds.size === 0} style={{ marginTop: 10 }}>
               学習を終了する
             </button>
           </div>

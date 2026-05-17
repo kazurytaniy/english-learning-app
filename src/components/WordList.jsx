@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { STATUS_LEVELS } from '../utils/constants';
-import { formatDateJst } from '../utils/date';
+import { addDaysJst, formatDateJst } from '../utils/date';
 import { cancelRestartReview, restartRetiredItems } from '../services/scheduleService';
 
 const uniqueTags = (tags) => Array.from(new Set(tags.filter(Boolean)));
@@ -88,6 +88,7 @@ export default function WordList({ repo, ready, onBack }) {
   const [example, setExample] = useState('');
   const [note, setNote] = useState('');
   const [status, setStatus] = useState(STATUS_LEVELS[0]);
+  const [manualRetired, setManualRetired] = useState(false);
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [items, setItems] = useState([]);
   const [tags, setTags] = useState([]);
@@ -130,6 +131,7 @@ export default function WordList({ repo, ready, onBack }) {
     setExample('');
     setNote('');
     setStatus(STATUS_LEVELS[0]);
+    setManualRetired(false);
     setCategory(CATEGORIES[0]);
     setSelectedTags([]);
     setEditingId(null);
@@ -142,6 +144,25 @@ export default function WordList({ repo, ready, onBack }) {
     if (!window.confirm(`この内容で単語を${actionText}しますか？`)) return;
 
     const filteredJaList = jaList.filter(j => j.trim());
+    const today = formatDateJst(new Date());
+    const retirementSettings = repo.getRetirementSettings ? await repo.getRetirementSettings() : { restartAfterDays: 180 };
+    const restartAfterDays = Number(retirementSettings.restartAfterDays) || 180;
+    const currentItem = editingId ? items.find((item) => item.id === editingId) : null;
+    const learningFields = manualRetired
+      ? {
+          learning_state: 'retired',
+          retired_at: currentItem?.retired_at || today,
+          restart_check_due: currentItem?.restart_check_due || addDaysJst(today, restartAfterDays),
+          restarted_at: null,
+          restart_reviewing: false,
+        }
+      : {
+          learning_state: 'active',
+          retired_at: null,
+          restart_check_due: null,
+          restarted_at: null,
+          restart_reviewing: false,
+        };
     const payload = {
       en: en.trim(),
       ja: filteredJaList.join('、'),
@@ -151,6 +172,7 @@ export default function WordList({ repo, ready, onBack }) {
       status,
       category,
       tags: uniqueTags(selectedTags),
+      ...learningFields,
     };
     let itemId = editingId;
     if (editingId) {
@@ -180,6 +202,7 @@ export default function WordList({ repo, ready, onBack }) {
     setExample(item.example || '');
     setNote(item.note || '');
     setStatus(item.status || STATUS_LEVELS[0]);
+    setManualRetired((item.learning_state || 'active') === 'retired' || (item.learning_state || 'active') === 'restart_pending');
     setCategory(item.category || CATEGORIES[0]);
     setSelectedTags(item.tags || []);
     if (topRef.current?.scrollIntoView) {
@@ -1139,6 +1162,21 @@ export default function WordList({ repo, ready, onBack }) {
                 </button>
               );
             })}
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">学習終了設定</label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#374151' }}>
+            <input
+              type="checkbox"
+              checked={manualRetired}
+              onChange={(e) => setManualRetired(e.target.checked)}
+            />
+            この単語を学習終了にする
+          </label>
+          <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>
+            ONにすると通常学習には出ず、設定日数後に再開確認待ちになります。
           </div>
         </div>
 
