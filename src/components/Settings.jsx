@@ -13,10 +13,21 @@ const DeleteIcon = () => (
 export default function Settings({ repo, onBack }) {
   const [intervals, setIntervals] = useState(DEFAULT_INTERVALS);
   const [newDay, setNewDay] = useState('');
+  const [retirementEnabled, setRetirementEnabled] = useState(true);
+  const [restartAfterDays, setRestartAfterDays] = useState('180');
   const MIN_COUNT = 3;
 
   useEffect(() => {
-    repo.getSettings().then((s) => setIntervals(sanitize(s?.intervals || intervals)));
+    const load = async () => {
+      const [spacing, retirement] = await Promise.all([
+        repo.getSettings(),
+        repo.getRetirementSettings ? repo.getRetirementSettings() : Promise.resolve({ enabled: true, restartAfterDays: 180 }),
+      ]);
+      setIntervals(sanitize(spacing?.intervals || intervals));
+      setRetirementEnabled(retirement.enabled !== false);
+      setRestartAfterDays(String(retirement.restartAfterDays || 180));
+    };
+    load();
   }, []);
 
   const sanitize = (arr) => {
@@ -60,6 +71,13 @@ export default function Settings({ repo, onBack }) {
       return;
     }
     await repo.saveSettings(clean);
+    if (repo.saveRetirementSettings) {
+      await repo.saveRetirementSettings({
+        enabled: retirementEnabled,
+        restartAfterDays: Number(restartAfterDays) || 180,
+        retireAfterMasterCorrect: true,
+      });
+    }
     setIntervals(clean);
     alert('保存しました');
   };
@@ -239,6 +257,32 @@ export default function Settings({ repo, onBack }) {
             />
             <button className="btn btn-primary" onClick={addInterval}>追加</button>
           </div>
+        </div>
+
+        <div className="form-group" style={{ borderTop: '1px solid #f3f4f6', paddingTop: 20 }}>
+          <label className="form-label">学習終了判定</label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, fontSize: 14, color: '#374151' }}>
+            <input
+              type="checkbox"
+              checked={retirementEnabled}
+              onChange={(e) => setRetirementEnabled(e.target.checked)}
+            />
+            マスター済み単語に正解したら、コマ終了時に学習終了するか確認する
+          </label>
+          <div className="input-row">
+            <input
+              className="form-input"
+              type="number"
+              min="1"
+              value={restartAfterDays}
+              onChange={(e) => setRestartAfterDays(e.target.value)}
+              style={{ flex: 1 }}
+            />
+            <span style={{ fontSize: 14, color: '#6b7280', whiteSpace: 'nowrap' }}>日後に再開確認</span>
+          </div>
+          <p className="settings-description" style={{ marginTop: 10, marginBottom: 0 }}>
+            学習終了中は通常学習に出ません。再開確認で正解すると再び学習終了、不正解なら「まだまだ」に戻して通常学習へ戻します。
+          </p>
         </div>
 
         <div className="button-row">

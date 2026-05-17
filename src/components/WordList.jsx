@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { STATUS_LEVELS } from '../utils/constants';
 import { formatDateJst } from '../utils/date';
+import { cancelRestartReview, restartRetiredItems } from '../services/scheduleService';
 
 const uniqueTags = (tags) => Array.from(new Set(tags.filter(Boolean)));
 
@@ -13,7 +14,7 @@ const STATUS_COLORS = {
   '読める': { bg: '#2196f3', text: '#fff' },
   '話せる': { bg: '#4caf50', text: '#fff' },
   '聞ける': { bg: '#ffc107', text: '#333' },
-  'マスター': { bg: 'linear-gradient(135deg, #ea580c 0%, #f59e0b 50%, #ea580c 100%)', text: '#fff' },
+  'マスター': { bg: 'linear-gradient(135deg, #d4a000 0%, #f59e0b 50%, #ea580c 100%)', text: '#fff' },
 };
 
 const formatDue = (s) => {
@@ -31,6 +32,13 @@ const SKILLS = [
   { id: 'B', label: '日→英' },
   { id: 'C', label: 'Listening' },
 ];
+
+const LEARNING_STATE_LABELS = {
+  active: '学習中',
+  retired: '学習終了中',
+  restart_pending: '再開確認待ち',
+  restart_reviewing: '180日後確認中',
+};
 
 // 編集アイコン
 const EditIcon = () => (
@@ -92,6 +100,7 @@ export default function WordList({ repo, ready, onBack }) {
   // フィルター
   const [filterCategory, setFilterCategory] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterLearningState, setFilterLearningState] = useState('');
   const [filterTag, setFilterTag] = useState('');
   const [maxAccuracy, setMaxAccuracy] = useState('');
   const [filterText, setFilterText] = useState('');
@@ -260,6 +269,10 @@ export default function WordList({ repo, ready, onBack }) {
     return items.filter((item) => {
       if (filterCategory && item.category !== filterCategory) return false;
       if (filterStatus && item.status !== filterStatus) return false;
+      if (filterLearningState) {
+        const state = item.restart_reviewing ? 'restart_reviewing' : (item.learning_state || 'active');
+        if (state !== filterLearningState) return false;
+      }
       if (filterTag && !(item.tags || []).includes(filterTag)) return false;
       const stat = statsByItem[item.id];
       const acc = stat?.total?.accuracy ?? 0;
@@ -275,7 +288,7 @@ export default function WordList({ repo, ready, onBack }) {
       ];
       return haystacks.some((text) => (text || '').toString().toLowerCase().includes(term));
     });
-  }, [items, filterCategory, filterStatus, filterTag, maxAccuracy, statsByItem, filterText, searchTrigger]);
+  }, [items, filterCategory, filterStatus, filterLearningState, filterTag, maxAccuracy, statsByItem, filterText, searchTrigger]);
 
   const searchMatchSummary = useMemo(() => {
     const term = filterText.trim().toLowerCase();
@@ -308,6 +321,20 @@ export default function WordList({ repo, ready, onBack }) {
       color: color.text,
       ...(isGradient && { backgroundImage: color.bg }),
     };
+  };
+
+  const getLearningState = (item) => item.restart_reviewing ? 'restart_reviewing' : (item.learning_state || 'active');
+
+  const handleRestartItem = async (item) => {
+    if (!window.confirm(`「${item.en}」を再開確認に戻しますか？`)) return;
+    await restartRetiredItems(repo, [item]);
+    await load();
+  };
+
+  const handleCancelRestart = async (item) => {
+    if (!window.confirm(`「${item.en}」の再開確認を取り消し、学習終了中に戻しますか？`)) return;
+    await cancelRestartReview(repo, item);
+    await load();
   };
 
   if (!ready) {
@@ -1154,6 +1181,7 @@ export default function WordList({ repo, ready, onBack }) {
             onClick={() => {
               setFilterCategory('');
               setFilterStatus('');
+              setFilterLearningState('');
               setFilterTag('');
               setMaxAccuracy('20');
               setFilterText('');
@@ -1192,6 +1220,16 @@ export default function WordList({ repo, ready, onBack }) {
               {STATUS_LEVELS.map((s) => (
                 <option key={s} value={s}>{s}</option>
               ))}
+            </select>
+          </div>
+          <div className="filter-group">
+            <label className="filter-label">学習終了判定</label>
+            <select className="filter-select" value={filterLearningState} onChange={(e) => setFilterLearningState(e.target.value)}>
+              <option value="">すべて</option>
+              <option value="active">学習中</option>
+              <option value="retired">学習終了中</option>
+              <option value="restart_pending">再開確認待ち</option>
+              <option value="restart_reviewing">180日後確認中</option>
             </select>
           </div>
           <div className="filter-group">
@@ -1249,6 +1287,9 @@ export default function WordList({ repo, ready, onBack }) {
           const skillA = stat.skills?.A || { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '' };
           const skillB = stat.skills?.B || { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '' };
           const skillC = stat.skills?.C || { correct: 0, wrong: 0, attempts: 0, accuracy: 0, next_due: '' };
+          const learningState = getLearningState(item);
+          const canRestart = learningState === 'retired' || learningState === 'restart_pending';
+          const canCancelRestart = learningState === 'restart_reviewing';
 
           return (
             <div key={item.id} className="word-card">
@@ -1272,8 +1313,29 @@ export default function WordList({ repo, ready, onBack }) {
                   <span className="status-badge" style={{ ...statusStyle, padding: '4px 10px', fontSize: '11px' }}>
                     {item.status || 'まだまだ'}
                   </span>
+                  <span className="status-badge" style={{ background: '#eef2ff', color: '#3730a3', padding: '4px 10px', fontSize: '11px' }}>
+                    {LEARNING_STATE_LABELS[learningState] || '学習中'}
+                  </span>
                 </div>
               </div>
+
+              {(learningState !== 'active' || item.restart_check_due) && (
+                <div className="detail-section" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <div className="detail-text">
+                    {item.restart_check_due ? `次回確認: ${item.restart_check_due}` : '次回確認: 未設定'}
+                  </div>
+                  {canRestart && (
+                    <button className="md-btn primary" onClick={() => handleRestartItem(item)}>
+                      学習を再開
+                    </button>
+                  )}
+                  {canCancelRestart && (
+                    <button className="md-btn" onClick={() => handleCancelRestart(item)}>
+                      再開確認を取り消す
+                    </button>
+                  )}
+                </div>
+              )}
 
               {Array.isArray(item.tags) && item.tags.length > 0 && (
                 <div>

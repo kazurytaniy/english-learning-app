@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { computeStats, getWeakRanking } from '../services/statsService';
+import { getRestartDueItems } from '../services/scheduleService';
 
 // アイコンコンポーネント
 const PlayIcon = () => (
@@ -39,18 +40,21 @@ const RepeatIcon = () => (
   </svg>
 );
 
-export default function Dashboard({ repo, onStartLearn, onStartReview, onNavigate }) {
+export default function Dashboard({ repo, onStartLearn, onStartReview, onRestartItems, onNavigate }) {
   const [stats, setStats] = useState(null);
   const [weakRanking, setWeakRanking] = useState([]);
+  const [restartDueItems, setRestartDueItems] = useState([]);
 
   useEffect(() => {
     const load = async () => {
-      const [s, weakList] = await Promise.all([
+      const [s, weakList, restartDue] = await Promise.all([
         computeStats(repo),
-        getWeakRanking(repo, 5)
+        getWeakRanking(repo, 5),
+        getRestartDueItems(repo),
       ]);
       setStats(s);
       setWeakRanking(weakList);
+      setRestartDueItems(restartDue);
     };
     load();
   }, [repo]);
@@ -321,6 +325,33 @@ export default function Dashboard({ repo, onStartLearn, onStartReview, onNavigat
       </div>
 
       {/* メニューカード */}
+      {restartDueItems.length > 0 && (
+        <div className="weak-ranking-card" style={{ border: '1px solid #bfdbfe', background: '#eff6ff' }}>
+          <div className="weak-ranking-header">
+            <div className="weak-ranking-title" style={{ color: '#2563eb' }}>
+              再開確認待ち {restartDueItems.length}件
+            </div>
+            <button
+              className="weak-review-btn"
+              style={{ background: '#2563eb' }}
+              onClick={() => onRestartItems?.(restartDueItems)}
+            >
+              再開する
+            </button>
+          </div>
+          <div className="weak-ranking-list">
+            {restartDueItems.slice(0, 5).map((item) => (
+              <div key={item.id} className="weak-ranking-item" style={{ background: '#dbeafe' }}>
+                <span className="weak-ranking-word">{item.en}</span>
+                <span className="weak-ranking-meta" style={{ color: '#2563eb' }}>
+                  次回確認: {item.restart_check_due || '-'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <button className="menu-card" onClick={() => onNavigate('words')}>
         <div className="menu-icon menu-icon-blue">
           <PlusIcon />

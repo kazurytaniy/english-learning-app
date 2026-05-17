@@ -1,7 +1,7 @@
 import { openDB } from 'idb';
 
 const DB_NAME = 'ela-db';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORES = [
   'items',
   'translations',
@@ -37,19 +37,51 @@ export function useRepo() {
     if (!spacing) {
       await db.put('settings', { id: 'spacing', intervals: [1, 2, 4, 7, 15, 30] });
     }
+    const retirement = await db.get('settings', 'retirement');
+    if (!retirement) {
+      await db.put('settings', { id: 'retirement', enabled: true, restartAfterDays: 180, retireAfterMasterCorrect: true });
+    }
   };
 
   // Settings
   const getSettings = async () => db.get('settings', 'spacing');
   const saveSettings = async (intervals) => db.put('settings', { id: 'spacing', intervals });
+  const getRetirementSettings = async () => {
+    const current = await db.get('settings', 'retirement');
+    return {
+      enabled: true,
+      restartAfterDays: 180,
+      retireAfterMasterCorrect: true,
+      ...(current || {}),
+      id: 'retirement',
+    };
+  };
+  const saveRetirementSettings = async (settings) => db.put('settings', {
+    id: 'retirement',
+    enabled: settings.enabled !== false,
+    restartAfterDays: Number(settings.restartAfterDays) || 180,
+    retireAfterMasterCorrect: settings.retireAfterMasterCorrect !== false,
+  });
 
   // Items
+  const withLearningDefaults = (item) => ({
+    learning_state: 'active',
+    retired_at: null,
+    restart_check_due: null,
+    restarted_at: null,
+    restart_reviewing: false,
+    ...item,
+  });
+
   const addItem = async (item) => {
-    const payload = { created_at: Date.now(), ...item };
+    const payload = withLearningDefaults({ created_at: Date.now(), ...item });
     return db.add('items', payload);
   };
-  const listItems = async () => db.getAll('items');
-  const updateItem = async (item) => db.put('items', item);
+  const listItems = async () => {
+    const items = await db.getAll('items');
+    return items.map(withLearningDefaults);
+  };
+  const updateItem = async (item) => db.put('items', withLearningDefaults(item));
   const deleteItem = async (id) => db.delete('items', id);
 
   // Tags
@@ -88,6 +120,7 @@ export function useRepo() {
     await tx.done;
     // restore default spacing
     await db.put('settings', { id: 'spacing', intervals: [1, 2, 4, 7, 15, 30] });
+    await db.put('settings', { id: 'retirement', enabled: true, restartAfterDays: 180, retireAfterMasterCorrect: true });
   };
 
   const resetProgressOnly = async () => {
@@ -99,7 +132,7 @@ export function useRepo() {
     const itemStore = tx.objectStore('items');
     const items = await itemStore.getAll();
     for (const item of items) {
-      await itemStore.put({ ...item, status: 'まだまだ' });
+      await itemStore.put({ ...withLearningDefaults(item), status: 'まだまだ', learning_state: 'active', retired_at: null, restart_check_due: null, restarted_at: null, restart_reviewing: false });
     }
 
     await tx.done;
@@ -130,7 +163,7 @@ export function useRepo() {
     const itemStore = tx.objectStore('items');
     const item = await itemStore.get(itemId);
     if (item) {
-      await itemStore.put({ ...item, status: 'まだまだ' });
+      await itemStore.put({ ...withLearningDefaults(item), status: 'まだまだ', learning_state: 'active', retired_at: null, restart_check_due: null, restarted_at: null, restart_reviewing: false });
     }
 
     await tx.done;
@@ -168,6 +201,8 @@ export function useRepo() {
     init,
     getSettings,
     saveSettings,
+    getRetirementSettings,
+    saveRetirementSettings,
     addItem,
     listItems,
     updateItem,

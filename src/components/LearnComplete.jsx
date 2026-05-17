@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { Copy, Check } from 'lucide-react';
 
-export default function LearnComplete({ summary, onBack, onRetryWrong }) {
+export default function LearnComplete({ summary, onBack, onRetryWrong, onRetireItems }) {
   const [copied, setCopied] = useState(false);
+  const [retired, setRetired] = useState(false);
   const textSimple = useMemo(() => {
     if (!summary?.wrongAnswers || summary.wrongAnswers.length === 0) {
       return '';
@@ -44,11 +45,42 @@ export default function LearnComplete({ summary, onBack, onRetryWrong }) {
     }
   };
 
+  const handleRetire = async () => {
+    const candidates = summary?.retirementCandidates || [];
+    if (candidates.length === 0 || !onRetireItems) return;
+    if (!window.confirm(`${candidates.length}件の単語を学習終了にしますか？\n学習終了中の単語は通常学習に出ず、180日後に再開確認されます。`)) return;
+    await onRetireItems(candidates);
+    setRetired(true);
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center px-4 word-page">
       <div className="form-card" style={{ maxWidth: 980, width: '100%', margin: '0 auto' }}>
         <h2 style={{ marginTop: 0, textAlign: 'center' }}>学習完了</h2>
         <p style={{ textAlign: 'center' }}>正解: {summary.correct} / 不正解: {summary.wrong}</p>
+
+        {summary.retirementCandidates?.length > 0 && !retired && (
+          <div className="word-card" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', marginBottom: 12 }}>
+            <div className="muted" style={{ marginBottom: 8 }}>学習終了できる単語 ({summary.retirementCandidates.length}件)</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 180, overflow: 'auto' }}>
+              {summary.retirementCandidates.map((item) => (
+                <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 14 }}>
+                  <strong style={{ wordBreak: 'break-word' }}>{item.en}</strong>
+                  <span className="muted" style={{ wordBreak: 'break-word' }}>{item.ja || ''}</span>
+                </div>
+              ))}
+            </div>
+            <button className="md-btn primary" onClick={handleRetire} style={{ marginTop: 10 }}>
+              学習を終了する
+            </button>
+          </div>
+        )}
+
+        {retired && (
+          <div className="status" style={{ marginBottom: 12 }}>
+            <Check size={16} /> 学習終了にしました
+          </div>
+        )}
 
         {summary.wrongItems?.length > 0 && (
           <div className="word-card" style={{ background: '#fef2f2', border: '1px solid #fecdd3' }}>

@@ -34,10 +34,10 @@ export default function LearnModeSelect({ repo, onStart, onBack }) {
   };
 
   const rowStyle = {
-    display: 'flex',
+    display: 'grid',
+    gridTemplateColumns: 'minmax(92px, 1fr) minmax(112px, auto) auto',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
+    gap: 6,
     padding: '12px 0',
     borderBottom: '1px solid #f3f4f6',
     minWidth: 0,
@@ -50,10 +50,10 @@ export default function LearnModeSelect({ repo, onStart, onBack }) {
   };
 
   const countStyle = {
-    flex: '0 0 64px',
-    textAlign: 'center',
+    textAlign: 'right',
     fontSize: 14,
-    color: '#6b7280'
+    color: '#6b7280',
+    minWidth: 0,
   };
 
   const countNumberStyle = {
@@ -63,12 +63,12 @@ export default function LearnModeSelect({ repo, onStart, onBack }) {
   };
 
   const buttonStyle = {
-    minWidth: 72,
-    padding: '8px 16px'
+    minWidth: 64,
+    padding: '8px 12px'
   };
 
   const numberStyle = {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 800,
     color: '#111827',
     verticalAlign: 'baseline'
@@ -77,14 +77,15 @@ export default function LearnModeSelect({ repo, onStart, onBack }) {
   const smallLabelStyle = {
     fontSize: 12,
     color: '#6b7280',
-    marginLeft: 2,
-    marginRight: 4
+    marginLeft: 1,
+    marginRight: 2,
+    whiteSpace: 'nowrap',
   };
 
   const RenderCount = ({ value }) => {
     const units = Math.ceil(value / 30);
     return (
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end', gap: 2, whiteSpace: 'nowrap' }}>
         <span style={numberStyle}>{units}</span>
         <span style={smallLabelStyle}>コマ</span>
         <span style={numberStyle}>{value}</span>
@@ -116,7 +117,7 @@ export default function LearnModeSelect({ repo, onStart, onBack }) {
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {/* 英→日 */}
             <div style={rowStyle}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flexWrap: 'wrap' }}>
                 <div className="skill-badge skill-badge-a">英→日</div>
                 <span style={{ fontSize: 12, color: '#6b7280' }}>{formatDaysAgo(lastDates.A)}</span>
               </div>
@@ -135,7 +136,7 @@ export default function LearnModeSelect({ repo, onStart, onBack }) {
 
             {/* 日→英 */}
             <div style={rowStyle}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flexWrap: 'wrap' }}>
                 <div className="skill-badge skill-badge-b">日→英</div>
                 <span style={{ fontSize: 12, color: '#6b7280' }}>{formatDaysAgo(lastDates.B)}</span>
               </div>
@@ -154,7 +155,7 @@ export default function LearnModeSelect({ repo, onStart, onBack }) {
 
             {/* Listening */}
             <div style={{ ...rowStyle, borderBottom: 'none' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flexWrap: 'wrap' }}>
                 <div className="skill-badge skill-badge-c">Listening</div>
                 <span style={{ fontSize: 12, color: '#6b7280' }}>{formatDaysAgo(lastDates.C)}</span>
               </div>

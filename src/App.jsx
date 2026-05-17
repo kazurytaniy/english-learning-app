@@ -10,7 +10,7 @@ import DataManagement from './components/DataManagement';
 import LearnModeSelect from './components/LearnModeSelect';
 import StatsPage from './components/StatsPage';
 import { useRepo } from './repo';
-import { buildTodayQueue, recordAnswer } from './services/scheduleService';
+import { buildTodayQueue, recordAnswer, retireItems, restartRetiredItems } from './services/scheduleService';
 
 const PAGES = { DASH: 'dash', LEARN: 'learn', LEARN_MODE: 'learnMode', COMPLETE: 'complete', FREE: 'free', WORDS: 'words', SETTINGS: 'settings', DATA: 'data', STATS: 'stats' };
 
@@ -86,7 +86,10 @@ function App() {
     if (!ready || !items || items.length === 0) return;
     await repo.clearSession('schedule');
     const newQueue = [];
-    for (const item of items) {
+    const latestItems = await repo.listItems();
+    const latestById = new Map(latestItems.map((item) => [item.id, item]));
+    for (const originalItem of items) {
+      const item = latestById.get(originalItem.id) || originalItem;
       for (const s of skills) {
         let prog = await repo.getProgress(item.id, s);
         if (!prog) {
@@ -116,9 +119,16 @@ function App() {
 
 
   const handleAnswer = async (item, skill, isCorrect, elapsedMs) => {
-    await recordAnswer(repo, item, skill, isCorrect, elapsedMs);
+    const result = await recordAnswer(repo, item, skill, isCorrect, elapsedMs);
     setAnswers((prev) => {
-      const nextAnswers = [...prev, { item, skill, isCorrect }];
+      const nextAnswers = [...prev, {
+        item: result?.item || item,
+        skill,
+        isCorrect,
+        retirementCandidate: Boolean(result?.retirementCandidate),
+        restartReset: Boolean(result?.restartReset),
+        restartConfirmed: Boolean(result?.restartConfirmed),
+      }];
       setQueue((prevQueue) => {
         const nextQueue = prevQueue.slice(1);
         repo.saveSession('schedule', {
@@ -139,13 +149,19 @@ function App() {
     const wrong = answers.filter((a) => !a.isCorrect).length;
     const wrongAnswers = answers.filter((a) => !a.isCorrect).map((a) => ({ item: a.item, skill: a.skill }));
     const wrongItems = wrongAnswers.map((a) => a.item);
-    setCompleteSummary({ correct, wrong, wrongItems, wrongAnswers });
+    const retirementCandidates = Array.from(
+      new Map(answers.filter((a) => a.retirementCandidate).map((a) => [a.item.id, a.item])).values()
+    );
+    setCompleteSummary({ correct, wrong, wrongItems, wrongAnswers, retirementCandidates });
     repo.clearSession('schedule');
     setPage(PAGES.COMPLETE);
   };
 
   const renderPage = () => {
-    if (page === PAGES.DASH) return <Dashboard repo={repo} onStartLearn={() => setPage(PAGES.LEARN_MODE)} onStartReview={startItemsReview} onNavigate={setPage} />;
+    if (page === PAGES.DASH) return <Dashboard repo={repo} onStartLearn={() => setPage(PAGES.LEARN_MODE)} onStartReview={startItemsReview} onRestartItems={async (items) => {
+      await restartRetiredItems(repo, items);
+      await startItemsReview(items, ['A', 'B', 'C']);
+    }} onNavigate={setPage} />;
     if (page === PAGES.LEARN_MODE) {
       return (
         <LearnModeSelect
@@ -187,6 +203,10 @@ function App() {
             setTotalCount(wrongQueue.length);
             repo.saveSession('schedule', { id: sid, queue: wrongQueue, answers: [], totalCount: wrongQueue.length, currentIndex: 0 });
             setPage(PAGES.LEARN);
+          }}
+          onRetireItems={async (items) => {
+            await retireItems(repo, items);
+            setCompleteSummary((prev) => prev ? { ...prev, retirementCandidates: [] } : prev);
           }}
         />
       );

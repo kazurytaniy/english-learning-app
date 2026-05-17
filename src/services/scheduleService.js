@@ -1,7 +1,8 @@
 import { nextStage } from './spacingService';
-import { formatDateJst } from '../utils/date';
+import { addDaysJst, formatDateJst } from '../utils/date';
 
 const todayStr = () => formatDateJst(new Date());
+const SKILLS = ['A', 'B', 'C'];
 
 const defaultProgress = (item, skill) => ({
   id: `${item.id}-${skill}`,
@@ -22,6 +23,8 @@ export async function buildTodayQueue(repo, skills = ['A', 'B', 'C'], options = 
   const intervals = settings?.intervals || [1, 2, 4, 7, 15, 30];
   const queue = [];
   for (const item of items) {
+    const learningState = item.learning_state || 'active';
+    if (learningState === 'retired' || learningState === 'restart_pending') continue;
     for (const skill of skills) {
       let prog = await repo.getProgress(item.id, skill);
       if (!prog) {
@@ -46,6 +49,8 @@ export async function countTodayQueue(repo, skills = ['A', 'B', 'C']) {
   const items = await repo.listItems();
   let total = 0;
   for (const item of items) {
+    const learningState = item.learning_state || 'active';
+    if (learningState === 'retired' || learningState === 'restart_pending') continue;
     for (const skill of skills) {
       let prog = await repo.getProgress(item.id, skill);
       if (!prog) {
@@ -67,8 +72,18 @@ export async function countTodayQueue(repo, skills = ['A', 'B', 'C']) {
 export async function recordAnswer(repo, item, skill, isCorrect, elapsedMs = 0) {
   const settings = await repo.getSettings();
   const intervals = [...(settings?.intervals || [1, 2, 4, 7, 15, 30])].sort((a, b) => a - b);
-  const key = `${item.id}-${skill}`;
   const current = (await repo.getProgress(item.id, skill)) || defaultProgress(item, skill);
+
+  if (item.restart_reviewing && !isCorrect) {
+    const resetProgresses = await resetItemToActiveLearning(repo, item);
+    const resetCurrent = resetProgresses.find((p) => p.skill === skill) || { ...current, stage: 0, mastered: false, complete_master: false, next_due: todayStr() };
+    resetCurrent.wrong_count = (resetCurrent.wrong_count || 0) + 1;
+    resetCurrent.accuracy = (resetCurrent.correct_count || 0) / ((resetCurrent.correct_count || 0) + (resetCurrent.wrong_count || 0) || 1);
+    await repo.saveProgress(resetCurrent);
+    await repo.addAttempt({ item_id: item.id, skill, result: isCorrect, ts: Date.now(), elapsedMs });
+    return { ...resetCurrent, retirementCandidate: false, restartReset: true };
+  }
+
   const { stage, days } = nextStage(current.stage, intervals, isCorrect);
   const next = new Date();
   next.setDate(next.getDate() + days);
@@ -84,7 +99,7 @@ export async function recordAnswer(repo, item, skill, isCorrect, elapsedMs = 0) 
   await repo.addAttempt({ item_id: item.id, skill, result: isCorrect, ts: Date.now(), elapsedMs });
 
   // 単語ステータスの自動更新
-  const allProgs = await Promise.all(['A', 'B', 'C'].map(async (s) => (s === skill ? current : await repo.getProgress(item.id, s)) || defaultProgress(item, s)));
+  const allProgs = await Promise.all(SKILLS.map(async (s) => (s === skill ? current : await repo.getProgress(item.id, s)) || defaultProgress(item, s)));
   const isAMastered = allProgs.find((p) => p.skill === 'A')?.mastered;
   const isBMastered = allProgs.find((p) => p.skill === 'B')?.mastered;
   const isCMastered = allProgs.find((p) => p.skill === 'C')?.mastered;
@@ -115,7 +130,110 @@ export async function recordAnswer(repo, item, skill, isCorrect, elapsedMs = 0) 
       }
     }
   }
-  return current;
+
+  const retirementSettings = repo.getRetirementSettings ? await repo.getRetirementSettings() : { enabled: true, retireAfterMasterCorrect: true };
+  const latestItem = { ...item, status: newStatus };
+  const retirementCandidate = Boolean(
+    retirementSettings.enabled &&
+    retirementSettings.retireAfterMasterCorrect &&
+    isCorrect &&
+    allMastered &&
+    (item.learning_state || 'active') === 'active' &&
+    !item.restart_reviewing
+  );
+
+  if (item.restart_reviewing && isCorrect) {
+    await retireItems(repo, [item]);
+    return { ...current, retirementCandidate: false, restartConfirmed: true };
+  }
+
+  return { ...current, retirementCandidate, item: latestItem };
+}
+
+async function resetItemToActiveLearning(repo, item) {
+  const today = todayStr();
+  const resetProgresses = [];
+  for (const skill of SKILLS) {
+    const current = (await repo.getProgress(item.id, skill)) || defaultProgress(item, skill);
+    const reset = {
+      ...current,
+      stage: 0,
+      next_due: today,
+      mastered: false,
+      complete_master: false,
+    };
+    await repo.saveProgress(reset);
+    resetProgresses.push(reset);
+  }
+  await repo.updateItem({
+    ...item,
+    status: 'まだまだ',
+    learning_state: 'active',
+    retired_at: null,
+    restart_check_due: null,
+    restarted_at: null,
+    restart_reviewing: false,
+  });
+  return resetProgresses;
+}
+
+export async function retireItems(repo, items) {
+  const settings = repo.getRetirementSettings ? await repo.getRetirementSettings() : { restartAfterDays: 180 };
+  const days = Number(settings.restartAfterDays) || 180;
+  const today = todayStr();
+  const unique = Array.from(new Map((items || []).map((item) => [item.id, item])).values());
+  for (const item of unique) {
+    await repo.updateItem({
+      ...item,
+      status: 'マスター',
+      learning_state: 'retired',
+      retired_at: today,
+      restart_check_due: addDaysJst(today, days),
+      restarted_at: null,
+      restart_reviewing: false,
+    });
+  }
+}
+
+export async function getRestartDueItems(repo) {
+  const items = await repo.listItems();
+  const today = todayStr();
+  const dueItems = [];
+  for (const item of items) {
+    if ((item.learning_state || 'active') === 'retired' && item.restart_check_due && item.restart_check_due <= today) {
+      const next = { ...item, learning_state: 'restart_pending' };
+      await repo.updateItem(next);
+      dueItems.push(next);
+    } else if ((item.learning_state || 'active') === 'restart_pending') {
+      dueItems.push(item);
+    }
+  }
+  return dueItems;
+}
+
+export async function restartRetiredItems(repo, items) {
+  const today = todayStr();
+  const unique = Array.from(new Map((items || []).map((item) => [item.id, item])).values());
+  for (const item of unique) {
+    for (const skill of SKILLS) {
+      const current = (await repo.getProgress(item.id, skill)) || defaultProgress(item, skill);
+      await repo.saveProgress({
+        ...current,
+        next_due: today,
+      });
+    }
+    await repo.updateItem({
+      ...item,
+      status: 'マスター',
+      learning_state: 'active',
+      restarted_at: today,
+      restart_reviewing: true,
+    });
+  }
+}
+
+export async function cancelRestartReview(repo, item) {
+  await retireItems(repo, [item]);
 }
 
 export async function getLastAttemptDates(repo) {
